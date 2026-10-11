@@ -343,7 +343,7 @@ cells of each timer.
 ### 2. OSD timers → armed segments
 
 Digits are classified against 60 hand-labelled templates (k-means centroids of real Betaflight
-digits, plus "clutter" classes), allowing ±2 px shifts. The per-arm timer runs at exactly 1 s per
+digits, plus "clutter" classes), allowing ±2 px shifts. A flight timer runs at exactly 1 s per
 second **only while armed**, so the value *timer − video time* is constant during a flight and
 changes when the quad is disarmed or re-armed:
 
@@ -362,7 +362,9 @@ stateDiagram-v2
 disarmed) both work; the per-arm one also reveals a quick disarm-rearm after a crash. With several
 timers on screen, the one that yields the most armed segments is used, so a power-on timer (which
 never pauses) never wins over an armed one. On the test session, timer 1 alone, timer 2 alone and
-both together all give the same 30.82 s result. A median filter removes single-frame OCR glitches. If no timer is readable, armed
+both together all give the same 30.82 s result.
+
+A median filter removes single-frame OCR glitches. If no timer is readable, armed
 segments come from motion instead. A lap that spans two armed segments involved a disarm, which is
 treated as a crash.
 
@@ -557,6 +559,9 @@ Tested on Track1 / Air65_2: 11 HDZero recordings, 1280×720 at 60 fps, 36 minute
 - **Course cuts** that still look like the reference lap are not detected.
 - **No parked start.** Videos that don't start parked are still timed using the reference from the
   others; if *no* video starts parked, `--anchor` is required.
+- **OSD in mid-picture.** Lap matching masks the picture edges where OSD elements usually sit. A
+  ticking element in the middle of the picture adds a little noise to lap matching (timer reading is
+  unaffected).
 - **OSD font.** Digit templates come from Betaflight's default font. Other fonts fall back to
   motion-based arm detection, which can miss short disarms.
 - **Thresholds** (`FAST_OUTLIER`, `GATE_FIT_MIN`, clean-cost clamps) were tuned on one track.

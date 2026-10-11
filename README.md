@@ -141,8 +141,9 @@ Racegow/
 - **Python 3.9+** with `opencv-python-headless`, `numpy`, `imageio-ffmpeg` (ffmpeg is bundled).
 - **Optional:** Node.js 18+ plus `ffmpeg`/`ffprobe` on PATH for the HyperFrames renderer. Without
   them the OpenCV renderer produces the same layout.
-- **Footage:** each recording should start with the quad parked in front of the start gate. The OSD
-  timers are optional but give the most reliable crash/disarm detection.
+- **Footage:** each recording should start with the quad parked in front of the start gate. One OSD
+  `mm:ss` timer, anywhere on screen, gives the most reliable crash/disarm detection; without one,
+  motion is used instead.
 
 ---
 
