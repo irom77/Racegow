@@ -147,6 +147,14 @@ Racegow/
 
 ---
 
+## References
+
+- [RaceGOW](https://www.racegow.com/): the FPV whoop racing competition that inspired this project (rules, tracks, leaderboards).
+- [RaceGOW Track Visualizer](https://racegow.geddyv.lt/track-visualizer/): community tool for viewing RaceGOW track layouts.
+- [Video Lap Tracking Lab](https://zerotasteguy.github.io/vltl/): browser tool for marking lap times frame by frame in a video, comparing laps and exporting CSV/JSON. Handy for spot-checking results by hand.
+
+---
+
 <p align="center"><sub>
 Independent open-source project, inspired by the <a href="https://www.racegow.com/">RaceGOW</a> tiny-whoop racing format.
 Not affiliated with or endorsed by RaceGOW. Released under the <a href="LICENSE">MIT License</a>.
