@@ -29,7 +29,7 @@ evening of work.
 
 | | |
 |---|---|
-| ⏱️ **Reads your OSD** | Finds the Betaflight `mm:ss` timers anywhere in the lower-right, reads them with template OCR, and knows exactly when you were armed. |
+| ⏱️ **Reads your OSD** | Finds a Betaflight `mm:ss` timer anywhere on screen (one is enough), reads it with template OCR, and knows exactly when you were armed. |
 | 🚩 **Learns the start gate** | No track setup. It spots the parked start position in each recording, learns the lap from how the footage repeats, and pins the timing line on the start gate. Works on any layout. |
 | 💥 **Throws out crashes** | Off-line laps, disarms, stalls, missed gates and impossibly fast "laps" are rejected, each with a reason. |
 | 🏁 **Best 3 in a row** | A sliding window over every clean lap in every video, ranked globally. |

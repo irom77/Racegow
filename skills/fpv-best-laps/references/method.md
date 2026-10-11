@@ -7,15 +7,22 @@ track that starts parked at the gate".
 
 1. **Extract** (`extract.py`, one sequential decode per video, cached)
    - *Picture box*: non-black area of sampled frames (removes 4:3 pillarbox bars).
-   - *OSD timers*: in the lower-right quadrant, persistent white glyphs are searched for a `:` (two
+   - *OSD timers*: anywhere in the frame, persistent white glyphs are searched for a `:` (two
      stacked dots). The dot spacing gives the glyph scale, so any resolution or OSD position works.
-     Each timer's 4 digit cells are stored every 3rd frame.
+     A candidate counts as a timer only if it reads as a valid `mm:ss` in at least 30% of the samples
+     and shows at least 3 different values (static text such as a `3.50v` battery reading is
+     rejected). Up to 3 timers are kept; each one's 4 digit cells are stored every 3rd frame.
    - Per frame: an 80x60 thumbnail of the picture, plus motion (mean absolute frame difference).
-2. **Arm state** (`osd.py`): the per-arm timer ticks 1 s per second only while armed. "Timer minus
-   video time" is constant while flying, drops while disarmed, and jumps on re-arm. Runs of constant
-   offset are the armed segments. If two timers are present, the row with the smaller readings is the
-   per-arm one (the other is cumulative). OCR uses the bundled Betaflight/HDZero digit templates
-   (`assets/osd_digits.npz`). Without a readable timer, flight segments come from motion.
+2. **Arm state** (`osd.py`, `analyze.arm_info`): a timer that counts only while armed ticks 1 s per
+   second during flight. "Timer minus video time" is constant while flying, changes while disarmed,
+   and jumps on re-arm. Runs of constant offset are the armed segments. **One timer is enough**: a
+   per-arm timer (resets on arm) or a total-armed timer (pauses when disarmed) both work. A per-arm
+   timer is slightly better, because it also reveals a quick disarm-rearm after a crash. With several
+   timers, the one that yields the most armed segments wins (ties: the smaller reading). A power-on
+   timer never pauses, so it never wins over an armed timer; if it is the only one, disarms go
+   undetected and the stall and off-line checks carry the crash filtering. OCR uses the bundled
+   Betaflight/HDZero digit templates (`assets/osd_digits.npz`). Without a readable timer, flight
+   segments come from motion.
 3. **Track calibration** (`track.py`), with no layout knowledge:
    - *Race start*: recordings open with a few seconds of handling, then the quad sits on the start
      spot facing the start gate (props idling or hovering in place), then launches. The parked view is
@@ -79,5 +86,8 @@ track that starts parked at the gate".
 - Laps that cut the course but still look like the reference lap are not detected as invalid.
 - Videos that never start parked are still timed (the reference comes from the others), but if no
   video starts parked, `--anchor` is required.
+- The lap matcher ignores fixed edge bands of the picture where OSD elements usually sit (`laps.KEEP`).
+  OSD elements in the middle of the picture are not masked; static ones are harmless, but a ticking
+  element there adds a little noise to the match cost.
 - OSD digit templates come from Betaflight's default font. Other fonts fall back to motion-based arm
   detection.

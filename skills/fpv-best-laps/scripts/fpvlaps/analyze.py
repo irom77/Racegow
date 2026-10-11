@@ -34,17 +34,22 @@ def flight_segments_from_motion(motion, fps):
 
 
 def arm_info(v):
-    """Armed segments from the per-arm OSD timer. The per-arm timer is the row with the smaller readings
-    (the other row, if any, is cumulative flight / on time)."""
+    """Armed segments from the OSD timer. Any timer that only counts while armed works on its own
+    (per-arm, or total armed time). With several timers, the one that reveals the most disarms wins
+    (a per-arm timer also resets on a quick re-arm; a power-on timer never stops), ties going to the
+    smaller reading."""
     if v["cells"] is None:
         return flight_segments_from_motion(v["motion"], v["fps"]), "motion (no OSD timer found)"
-    secs = osd.to_seconds(osd.classify(v["cells"]))               # (samples, rows)
+    secs = osd.to_seconds(osd.classify(v["cells"]))               # (samples, timers)
     readable = np.mean(~np.isnan(secs), 0)
     rows = [r for r in range(secs.shape[1]) if readable[r] > 0.3]
     if not rows:
         return flight_segments_from_motion(v["motion"], v["fps"]), "motion (OSD unreadable)"
-    row = min(rows, key=lambda r: np.nanmedian(secs[:, r]))
-    return osd.arm_segments(secs[:, row], v["fps"], OCR_STEP), f"OSD timer row {row + 1}"
+    segs = {r: osd.arm_segments(secs[:, r], v["fps"], OCR_STEP) for r in rows}
+    row = min(rows, key=lambda r: (-len(segs[r]), np.nanmedian(secs[:, r])))
+    if not segs[row]:
+        return flight_segments_from_motion(v["motion"], v["fps"]), "motion (OSD timer never ran)"
+    return segs[row], f"OSD timer {row + 1} of {secs.shape[1]}"
 
 
 def load_all(work, names, log):

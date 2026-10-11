@@ -331,9 +331,10 @@ Each video is decoded **once**, sequentially (seeking in HEVC is slow and imprec
 decode, 48 sampled frames are used to locate:
 
 - **The picture box:** the non-black area, which removes 4:3 pillarbox bars from 16:9 recordings.
-- **The OSD timers:** persistent white glyphs (grey > 190) in the lower-right quadrant are searched
-  for a colon, i.e. two stacked dots. The dot spacing sets the glyph scale (18 px at 720p), so any
-  resolution or OSD position works, including recordings where the OSD is shifted by tens of pixels.
+- **The OSD timers:** persistent white glyphs (grey > 190) anywhere in the frame are searched for a
+  colon, i.e. two stacked dots. The dot spacing sets the glyph scale (18 px at 720p), so any
+  resolution and any OSD position works. A candidate must read as a valid `mm:ss` in at least 30% of
+  the samples and show at least 3 different values, which rejects static text such as `3.50v`.
 
 During the decode, each frame contributes an 80×60 greyscale thumbnail of the picture (OSD bands
 masked out), a motion value (mean absolute frame difference), and, every 3rd frame, the 4 digit
@@ -357,8 +358,11 @@ stateDiagram-v2
     Armed --> [*]: end of video
 ```
 
-With two timers on screen, the row with the smaller readings is the per-arm one (the other is
-cumulative). A median filter removes single-frame OCR glitches. If no timer is readable, armed
+**One timer is enough.** A per-arm timer (resets on arm) and a total-armed timer (pauses while
+disarmed) both work; the per-arm one also reveals a quick disarm-rearm after a crash. With several
+timers on screen, the one that yields the most armed segments is used, so a power-on timer (which
+never pauses) never wins over an armed one. On the test session, timer 1 alone, timer 2 alone and
+both together all give the same 30.82 s result. A median filter removes single-frame OCR glitches. If no timer is readable, armed
 segments come from motion instead. A lap that spans two armed segments involved a disarm, which is
 treated as a crash.
 
@@ -565,7 +569,7 @@ Tested on Track1 / Air65_2: 11 HDZero recordings, 1280×720 at 60 fps, 36 minute
 | Symptom | Fix |
 |---|---|
 | `No parked start found` / `Could not find a repeating lap pattern` | Footage doesn't start parked at the gate, or there are too few laps. Use `--anchor VIDEO:FRAME`. |
-| `armed via motion (no OSD timer found)` in the report | Timers aren't in the lower-right or the font differs. Laps still work; disarm detection relies on motion. |
+| `armed via motion (no OSD timer found)` in the report | No `mm:ss` timer is shown, or the OSD font differs from Betaflight's default. Laps still work; disarm detection relies on motion. |
 | No 3-lap result | Not enough consecutive clean laps. Check the reasons in `laps.csv`, consider the tunables above. |
 | Rank 1 has a "Check before trusting" block | Open `sheets/rank1_crossings.jpg`. If a row differs, render the next consistent rank with `--rank N`. |
 | HyperFrames render fails | Re-run with `--renderer opencv` and report the HyperFrames error. |

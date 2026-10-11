@@ -117,7 +117,7 @@ session is steadier. A new layout needs a fresh calibration: just run without `-
 | Symptom | What to do |
 |---|---|
 | "No parked start found" / "Could not find a repeating lap pattern" | Footage doesn't start parked at the gate, or there are too few laps. Use `--anchor VIDEO:FRAME`. |
-| A video shows `armed via motion (no OSD timer found)` | OSD timers aren't in the lower-right or the font differs. Laps still work. Disarm detection then relies on motion only. |
+| A video shows `armed via motion (no OSD timer found)` | No `mm:ss` timer is on screen, or the OSD font differs from Betaflight's default. Laps still work. Disarm detection then relies on motion only. |
 | No 3-lap result | Not enough consecutive clean laps. Check `laps.csv` reasons, then `--rank` / the runners-up. |
 | HyperFrames render fails | Re-run with `--renderer opencv`, and report the HyperFrames error. |
 

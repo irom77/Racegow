@@ -1,8 +1,8 @@
-"""OSD timer location and reading (Betaflight-style mm:ss timers in the bottom-right corner).
+"""OSD timer location and reading (Betaflight-style mm:ss timers, anywhere on screen).
 
-Timers are found per video from persistent white glyphs: each timer row has a ':' whose two dots
-are a fixed distance apart. That distance sets the glyph scale, so the same digit templates work
-for any recording resolution or OSD position."""
+Timers are found per video from persistent white glyphs: each timer has a ':' whose two dots are a
+fixed distance apart. That distance sets the glyph scale, so the same digit templates work for any
+recording resolution or OSD position. One timer is enough; extra ones are kept as alternatives."""
 import numpy as np
 import cv2
 from .config import ASSETS, OSD_WHITE
@@ -85,26 +85,27 @@ def to_seconds(digits):
     return np.where(ok, secs, np.nan)
 
 
-def locate_timers(gray_samples):
-    """Find up to two stacked mm:ss timers in the lower-right quadrant. Returns colons sorted top->bottom."""
-    H, W = gray_samples[0].shape
-    x0, y0, x1, y1 = int(0.5 * W), int(0.4 * H), W, int(0.97 * H)
-    persist = np.mean([(g[y0:y1, x0:x1] > OSD_WHITE) for g in gray_samples], 0)
+def locate_timers(gray_samples, max_timers=3, min_rate=0.3, min_distinct=3):
+    """Find the mm:ss timers anywhere in the frame. A candidate must read as a valid mm:ss in at least
+    `min_rate` of the samples and show at least `min_distinct` different values (a running timer,
+    not static text such as a voltage). Returns up to `max_timers` colons sorted top->bottom, left->right."""
+    persist = np.mean([g > OSD_WHITE for g in gray_samples], 0)
     scored = []
-    for col in find_colons(persist, (x0, y0)):
+    for col in find_colons(persist, (0, 0)):
         secs = to_seconds(classify(np.stack([grab_cells(g, col) for g in gray_samples])))
-        rate = float(np.mean(~np.isnan(secs)))
-        if rate >= 0.3:
+        ok = ~np.isnan(secs)
+        rate = float(np.mean(ok))
+        if rate >= min_rate and len(np.unique(secs[ok])) >= min_distinct:
             scored.append((rate, col))
-    # de-duplicate (same colon found twice) and keep the two most readable
+    # de-duplicate (same colon found twice) and keep the most readable
     scored.sort(key=lambda t: -t[0])
     keep = []
     for rate, col in scored:
         if all(abs(col[0] - k[0]) > 4 or abs(col[1] - k[1]) > 4 for k in keep):
             keep.append(col)
-        if len(keep) == 2:
+        if len(keep) == max_timers:
             break
-    return sorted(keep, key=lambda c: c[1])
+    return sorted(keep, key=lambda c: (c[1], c[0]))
 
 
 def arm_segments(secs, fps, step):
