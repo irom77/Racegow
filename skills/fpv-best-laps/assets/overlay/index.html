@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=__W__, height=__H__">
+    <title>Best 3 Consecutive Laps</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      @font-face {
+        font-family: "Inter";
+        src: url("assets/fonts/inter-500.woff2") format("woff2");
+        font-weight: 500;
+      }
+      @font-face {
+        font-family: "Inter";
+        src: url("assets/fonts/inter-800.woff2") format("woff2");
+        font-weight: 800;
+      }
+      body {
+        margin: 0;
+        background: #000;
+      }
+      #root {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        font-family: "Inter", sans-serif;
+        font-variant-numeric: tabular-nums;
+        color: #fff;
+      }
+      #footage {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      /* Timing panel: pinned to the left edge, every line left-aligned */
+      #panel {
+        position: absolute;
+        left: 16px;
+        top: 96px;
+        width: 268px;
+        padding: 18px 20px 20px;
+        box-sizing: border-box;
+        text-align: left;
+        background: rgba(8, 10, 14, 0.78);
+        border-left: 4px solid #ffd21f;
+        border-radius: 0 10px 10px 0;
+      }
+      .eyebrow {
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.1em;
+        white-space: nowrap;
+        text-transform: uppercase;
+        color: #ffd21f;
+      }
+      .sub {
+        margin-top: 4px;
+        font-size: 13px;
+        font-weight: 500;
+        color: rgba(255, 255, 255, 0.62);
+      }
+      .label {
+        margin-top: 18px;
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.62);
+      }
+      #total {
+        margin-top: 2px;
+        font-size: 54px;
+        font-weight: 800;
+        line-height: 1;
+        letter-spacing: -0.02em;
+      }
+      #total small {
+        font-size: 26px;
+        font-weight: 500;
+        margin-left: 3px;
+        color: rgba(255, 255, 255, 0.7);
+      }
+      .laps {
+        margin-top: 16px;
+        border-top: 1px solid rgba(255, 255, 255, 0.16);
+      }
+      .lap {
+        display: flex;
+        justify-content: flex-start;
+        align-items: baseline;
+        gap: 16px;
+        padding: 10px 0 10px 10px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        border-left: 3px solid transparent;
+        opacity: 0.4;
+      }
+      .lap .n {
+        width: 52px;
+        font-size: 15px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        color: rgba(255, 255, 255, 0.7);
+      }
+      .lap .t {
+        font-size: 28px;
+        font-weight: 800;
+      }
+      .lap .t small {
+        font-size: 16px;
+        font-weight: 500;
+        margin-left: 2px;
+        color: rgba(255, 255, 255, 0.7);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-width="__W__" data-height="__H__" data-fps="__FPS__" data-duration="__DURATION__">
+      <video id="footage" class="clip" src="assets/clip.mp4" playsinline data-has-audio="true" data-start="0" data-duration="__DURATION__" data-track-index="0" data-volume="1"></video>
+
+      <div id="panel" class="clip" data-start="0" data-duration="__DURATION__" data-track-index="1">
+        <div class="eyebrow">Best 3 consecutive laps</div>
+        <div class="sub">__SUBTITLE__</div>
+        <div class="label">Total</div>
+        <div id="total">0.00<small>s</small></div>
+        <div class="laps">
+          <div class="lap" id="lap1"><span class="n">LAP 1</span><span class="t" id="t1">0.00<small>s</small></span></div>
+          <div class="lap" id="lap2"><span class="n">LAP 2</span><span class="t" id="t2">0.00<small>s</small></span></div>
+          <div class="lap" id="lap3"><span class="n">LAP 3</span><span class="t" id="t3">0.00<small>s</small></span></div>
+        </div>
+      </div>
+    </div>
+    <script>
+      // Start-gate crossings in clip time (seconds), filled in by fpvlaps render.
+      const GATES = __GATES__;
+      const fmt = (s) => s.toFixed(2) + "<small>s</small>";
+      const totalEl = document.getElementById("total");
+      const lapEls = [1, 2, 3].map((i) => document.getElementById("t" + i));
+      const rowEls = [1, 2, 3].map((i) => document.getElementById("lap" + i));
+
+      const tl = gsap.timeline({ paused: true });
+      tl.fromTo("#panel", { x: -300 }, { x: 0, duration: 0.5, ease: "power3.out" }, 0.1);
+
+      for (let i = 0; i < 3; i++) {
+        const a = GATES[i], b = GATES[i + 1];
+        const lap = { v: 0 };
+        // running lap clock while the lap is in progress, frozen on the final time afterwards
+        tl.fromTo(lap, { v: 0 }, {
+          v: b - a, duration: b - a, ease: "none",
+          onUpdate: () => { lapEls[i].innerHTML = fmt(lap.v); },
+        }, a);
+        // active row: full opacity + accent bar; finished rows stay bright, upcoming rows dimmed
+        tl.fromTo(rowEls[i], { opacity: 0.4, borderLeftColor: "rgba(255,210,31,0)" },
+          { opacity: 1, borderLeftColor: "rgba(255,210,31,1)", duration: 0.2, ease: "power1.out", immediateRender: i === 0 }, a);
+        tl.to(rowEls[i], { borderLeftColor: "rgba(255,210,31,0)", duration: 0.2 }, b);
+      }
+      const total = { v: 0 };
+      tl.fromTo(total, { v: 0 }, {
+        v: GATES[3] - GATES[0], duration: GATES[3] - GATES[0], ease: "none",
+        onUpdate: () => { totalEl.innerHTML = fmt(total.v); },
+      }, GATES[0]);
+      tl.fromTo("#total", { color: "#ffffff" }, { color: "#ffd21f", duration: 0.3, immediateRender: false }, GATES[3]);
+      tl.set({}, {}, __DURATION__);
+
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>

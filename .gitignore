@@ -1,0 +1,23 @@
+# environments and local tools
+.venv/
+.fpvlaps-venv/
+ffmpeg
+.vscode/
+__pycache__/
+*.pyc
+
+# caches and outputs (multi-GB, regenerate with the CLI)
+work/
+fpvlaps-work/
+
+# video and HyperFrames working files
+*.mp4
+*.mov
+*.mkv
+export/renders/
+export/.thumbnails/
+export/.waveform-cache/
+export/.hyperframes/
+
+# scratch
+probe.py

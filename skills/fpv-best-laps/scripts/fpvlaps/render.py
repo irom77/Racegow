@@ -1,0 +1,131 @@
+"""Export the best 3-lap window: frame-accurate cut + left-aligned overlay (total + 3 lap times).
+
+Two interchangeable renderers produce the same layout:
+  hyperframes — HTML/GSAP composition rendered by the HyperFrames CLI (needs Node/npx + ffmpeg/ffprobe)
+  opencv      — pure Python fallback (OpenCV drawing + ffmpeg mux), works anywhere Python runs"""
+import json
+import shutil
+import subprocess
+from pathlib import Path
+import numpy as np
+import cv2
+from .config import ASSETS
+from .media import cut_clip, ffmpeg_exe, ffprobe_exe, env_with_tools
+
+HYPERFRAMES = "hyperframes@0.8.145"     # pinned for reproducible renders
+
+
+def plan(work, rank, lead):
+    R = json.loads((Path(work) / "result.json").read_text())
+    if len(R["best"]) < rank:
+        raise SystemExit("No such result: fewer than %d valid 3-lap windows (see report.md)" % rank)
+    b = R["best"][rank - 1]
+    v = next(x for x in R["videos"] if x["name"] == b["video"])
+    fps = R["fps"]
+    crossings = [b["laps"][0]["start"]] + [l["end"] for l in b["laps"]]
+    pad = int(round(lead * fps))
+    first = max(0, crossings[0] - pad)
+    last = min(int(v["seconds"] * fps) - 1, crossings[-1] + pad)
+    gates = [(c - first) / fps for c in crossings]
+    return dict(R=R, best=b, video=v, fps=fps, first=first, n=last - first + 1, gates=gates,
+                times=[l["time"] for l in b["laps"]], total=b["total"])
+
+
+def hyperframes_ready():
+    return bool(shutil.which("npx") and ffprobe_exe() and shutil.which("ffmpeg"))
+
+
+def render_hyperframes(p, out, subtitle, proj):
+    proj.mkdir(parents=True, exist_ok=True)
+    (proj / "assets" / "fonts").mkdir(parents=True, exist_ok=True)
+    for f in (ASSETS / "overlay" / "fonts").iterdir():
+        shutil.copy(f, proj / "assets" / "fonts" / f.name)
+    shutil.copy(p["clip"], proj / "assets" / "clip.mp4")
+    html = (ASSETS / "overlay" / "index.html").read_text()
+    dur = f"{p['n'] / p['fps']:.3f}"
+    for k, val in {"__W__": str(p["w"]), "__H__": str(p["h"]), "__FPS__": f"{p['fps']:g}", "__DURATION__": dur,
+                   "__GATES__": json.dumps([round(g, 4) for g in p["gates"]]), "__SUBTITLE__": subtitle}.items():
+        html = html.replace(k, val)
+    (proj / "index.html").write_text(html)
+    cmd = ["npx", "--yes", HYPERFRAMES, "render", str(proj), "-f", f"{p['fps']:g}", "-q", "delivery", "-o", str(out)]
+    subprocess.run(cmd, check=True, env=env_with_tools())
+
+
+def _text(img, s, org, scale, color, weight):
+    cv2.putText(img, s, org, cv2.FONT_HERSHEY_DUPLEX, scale, color, weight, cv2.LINE_AA)
+
+
+def render_opencv(p, out, subtitle):
+    cap = cv2.VideoCapture(str(p["clip"]))
+    W, H, fps = p["w"], p["h"], p["fps"]
+    k = H / 720.0
+    ff = subprocess.Popen([ffmpeg_exe(), "-loglevel", "error", "-y", "-f", "rawvideo", "-pix_fmt", "bgr24",
+                           "-s", f"{W}x{H}", "-r", f"{fps:g}", "-i", "-", "-i", str(p["clip"]),
+                           "-map", "0:v", "-map", "1:a?", "-c:v", "libx264", "-preset", "medium", "-crf", "16",
+                           "-pix_fmt", "yuv420p", "-c:a", "copy", "-movflags", "+faststart", str(out)],
+                          stdin=subprocess.PIPE)
+    G = p["gates"]
+    yellow, white, dim = (31, 210, 255), (255, 255, 255), (170, 170, 170)
+    x0, y0, pw, ph = int(16 * k), int(96 * k), int(268 * k), int(340 * k)
+    i = 0
+    while True:
+        ok, fr = cap.read()
+        if not ok:
+            break
+        t = i / fps
+        ov = fr.copy()
+        cv2.rectangle(ov, (x0, y0), (x0 + pw, y0 + ph), (14, 10, 8), -1)
+        fr = cv2.addWeighted(ov, 0.78, fr, 0.22, 0)
+        cv2.rectangle(fr, (x0, y0), (x0 + int(4 * k), y0 + ph), yellow, -1)
+        lx = x0 + int(24 * k)
+        _text(fr, "BEST 3 CONSECUTIVE LAPS", (lx, y0 + int(30 * k)), 0.45 * k, yellow, 1)
+        _text(fr, subtitle[:34], (lx, y0 + int(52 * k)), 0.42 * k, dim, 1)
+        _text(fr, "TOTAL", (lx, y0 + int(88 * k)), 0.42 * k, dim, 1)
+        tot = min(max(t - G[0], 0.0), G[3] - G[0])
+        _text(fr, f"{tot:.2f}s", (lx, y0 + int(140 * k)), 1.55 * k, yellow if t >= G[3] else white, 2)
+        for n in range(3):
+            ly = y0 + int((196 + 52 * n) * k)
+            lap = min(max(t - G[n], 0.0), G[n + 1] - G[n])
+            active = G[n] <= t < G[n + 1]
+            col = white if t >= G[n] else dim
+            if active:
+                cv2.rectangle(fr, (lx - int(10 * k), ly - int(28 * k)), (lx - int(7 * k), ly + int(10 * k)), yellow, -1)
+            _text(fr, f"LAP {n + 1}", (lx, ly), 0.5 * k, dim, 1)
+            _text(fr, f"{lap:.2f}s", (lx + int(84 * k), ly), 0.85 * k, col, 2)
+        ff.stdin.write(fr.tobytes())
+        i += 1
+    ff.stdin.close()
+    ff.wait()
+    cap.release()
+
+
+def render(work, rank=1, renderer="auto", lead=1.0, title=None, keep_clip=False):
+    work = Path(work)
+    p = plan(work, rank, lead)
+    src = p["video"]["path"]
+    exp = work / "export"
+    exp.mkdir(exist_ok=True)
+    p["clip"] = exp / f"clip_rank{rank}.mp4"
+    cut_clip(src, p["clip"], p["first"], p["n"], p["fps"])
+    cap = cv2.VideoCapture(str(p["clip"]))
+    p["w"], p["h"] = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    cap.release()
+    folder = Path(p["R"]["videos_dir"]).name if p["R"].get("videos_dir") else ""
+    subtitle = title or " · ".join(s for s in (folder, p["video"]["name"]) if s)
+    out = exp / f"best3_laps_{p['video']['name']}_{p['total']:.2f}s.mp4"
+    use = renderer
+    if renderer == "auto":
+        use = "hyperframes" if hyperframes_ready() else "opencv"
+        if use == "opencv":
+            print("  HyperFrames needs npx + ffmpeg + ffprobe on PATH; using the OpenCV renderer")
+    if use == "hyperframes":
+        render_hyperframes(p, out, subtitle, exp / f"hyperframes_rank{rank}")
+    else:
+        render_opencv(p, out, subtitle)
+    if not keep_clip:
+        p["clip"].unlink(missing_ok=True)       # intermediate cut; the export folder keeps only deliverables
+    meta = dict(output=str(out), renderer=use, video=p["video"]["name"], source_frames=[p["first"], p["first"] + p["n"] - 1],
+                gates_clip_s=p["gates"], laps_s=p["times"], total_s=p["total"])
+    (exp / f"render_rank{rank}.json").write_text(json.dumps(meta, indent=1))
+    print(f"  exported {out}  ({use})")
+    return out
