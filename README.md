@@ -8,6 +8,7 @@
 </p>
 
 <p align="center">
+  <img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-green">
   <img alt="Python" src="https://img.shields.io/badge/python-3.9%2B-3776AB?logo=python&logoColor=white">
   <img alt="OpenCV" src="https://img.shields.io/badge/OpenCV-vision-5C3EE8?logo=opencv&logoColor=white">
   <img alt="HyperFrames" src="https://img.shields.io/badge/HyperFrames-overlay-ffd21f">
@@ -147,5 +148,5 @@ Racegow/
 
 <p align="center"><sub>
 Independent open-source project, inspired by the <a href="https://www.racegow.com/">RaceGOW</a> tiny-whoop racing format.
-Not affiliated with or endorsed by RaceGOW.
+Not affiliated with or endorsed by RaceGOW. Released under the <a href="LICENSE">MIT License</a>.
 </sub></p>
