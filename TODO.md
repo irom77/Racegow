@@ -41,3 +41,17 @@ splits verified, e.g. to check a leaderboard submission.
   certain without one.
 - [ ] Docs: SKILL.md workflow branch for URLs, README usage example, `yt-dlp` in requirements and
   `doctor`. Note YouTube's terms of service: only analyse videos you own or have permission to use.
+
+## Feature: show the date with the live lap clock
+
+Add the session date to the overlay, next to (or under) the live lap clock, so exported clips show
+when the run was flown.
+
+- [ ] Date source, in order: `--date YYYY-MM-DD` override, the container's `creation_time`
+  (ffprobe), then the file's modification time. Many goggles/DVRs have no real-time clock (HDZero
+  files can carry a default date), so ignore implausible dates (e.g. before 2015) and fall back.
+- [ ] Store the chosen date and its source in `result.json`, and show it in `report.md`.
+- [ ] Render it in both renderers, left-aligned with the rest of the panel: HyperFrames
+  (`assets/overlay/index.html`, new `__DATE__` placeholder) and OpenCV (`render.py`).
+- [ ] Format option `--date-format` (default `%Y-%m-%d`), and `--no-date` to hide it.
+- [ ] Docs: SKILL.md render step and README options table.
