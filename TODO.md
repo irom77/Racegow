@@ -105,3 +105,77 @@ sounds different and calls what actually happened. Can be used alone or on top o
 - [ ] Off by default; enable with `--commentary`. Save the script with timestamps as
   `<work>/export/commentary.txt` so it can be reviewed or edited and re-rendered.
 - [ ] Docs: SKILL.md render step and README options table.
+
+## Feature: read the track folder README automatically
+
+Each track folder (e.g. `RaceeGow6/Track2/`) has a `README.md` with the organiser's demo video, the
+time its flythrough starts, and one lap the pilot knows is correct. Batches live in subfolders
+(`Track2/1st`, `Track2/2nd`, ...). Let the tool pick all of that up, so timing a new batch is just
+`fpvlaps.py run --videos Track2/2nd` with no flags.
+
+- [ ] Define a small, documented README format, e.g. lines `Demo: <url>`, `Flythrough: 1:00`,
+  `Correct lap: 1st/hdz_0022 at 0:59` (video path relative to the track folder, time in the video).
+- [ ] When `--videos` is a batch folder, look for `README.md` in the folder and its parent. Use, in
+  order: `--track`/`--anchor` from the command line, then `track.json` next to the README, then
+  the README's `Correct lap` (converted to an anchor frame, snapped to the nearest start-gate
+  crossing), then automatic calibration.
+- [ ] Allow the correct lap to be in a different batch folder than the one being timed (extract
+  features for that one video only).
+- [ ] After a run that the user or agent has verified, offer to save `track.json`/`track.npz` next to
+  the README (a `--save-track` flag), so later batches reuse it.
+- [ ] Put the demo link and flythrough time in `report.md`, next to the verification sheets, as the
+  reference to check the winning laps against.
+- [ ] Docs: SKILL.md workflow (read the README first, check laps against the demo), README usage
+  example with a track-folder layout, and a template track README.
+
+## New skills: YouTube upload and RaceGOW leaderboard
+
+Two small agent skills next to `fpv-best-laps`, for after a best-3-laps clip has been verified.
+
+### Skill: upload the best-laps clip to YouTube
+
+Upload the exported clip to the pilot's YouTube channel (pilot nickname **PAPFPV**). The channel is
+whichever one the pilot picks at the Google sign-in; the first upload went to **niuk**
+(@niuk9290), not youtube.com/irom77.
+
+**Status: in progress.** The first upload was done by hand with a prototype script on 2026-10-12:
+https://youtu.be/GG7-ezzppak (RaceGOW6 Track 2, 41.43 s, public). The prototype, `yt_upload.py`
+(`auth` and `upload` commands, google-api-python-client + google-auth-oauthlib), is outside the
+repo. What's left is turning it into a skill that builds the title and description by itself.
+
+- [ ] Title includes: the current RaceGOW number, the track number, the 3-lap time and `PAPFPV`,
+  format `RaceGOW6 Track 2 | 41.43s best 3 consecutive laps | PAPFPV`. Take the RaceGOW/track
+  numbers from the track folder (README or `result.json`), the time from `result.json`.
+- [ ] Description, in this order (the approved first upload is the template): the result and lap
+  splits; pilot `PAPFPV` and current RaceGOW rank (from the leaderboard skill below; 300 on
+  2026-10-12); quad and video system (craft name from the OSD, e.g. Air65 · HDZero) and the date
+  flown; "About the race": track sponsor/designer and deadline (from the organiser's demo video
+  description; racegow.com/home doesn't list per-track details), the demo flythrough link with its
+  start time, racegow.com home, leaderboards and Discord links; a credit line linking
+  https://github.com/irom77/Racegow; `#RaceGOW #tinywhoop #fpv`.
+- [ ] Tags: RaceGOW, RaceGOW<N>, tiny whoop, whoop racing, FPV, quad name, video system, PAPFPV,
+  track sponsor. Category 17 (Sports), not made for kids.
+- [x] Prove the API flow end to end: OAuth sign-in, channel check, resumable public upload (done by
+  hand with the prototype for the first video).
+- [ ] Auth: YouTube Data API v3, desktop OAuth client (`client_secret_*.json`, redirect
+  `http://localhost`), scopes `youtube.upload` + `youtube.readonly` (to confirm the channel). The
+  consent URL is printed (no browser on WSL) and the local callback listens on port 8765. Token in
+  `~/.config/racegow-youtube/token.json` (mode 600, never in the repo); refresh it automatically.
+  Document: enable the API in the Cloud project, add the pilot as a test user while the app is in
+  testing mode.
+- [ ] Always show the title/description for approval before uploading. Privacy is the pilot's call
+  on each upload (`--privacy private|unlisted|public`); the first upload was approved as
+  **public**. Resumable upload with progress.
+- [ ] Return the video URL and save it in `result.json` and the track README results table (done
+  by hand for the first upload).
+- [ ] Before uploading, check the channel name the token points to and confirm it with the pilot.
+
+### Skill: find the pilot's current RaceGOW leaderboard position
+
+- [ ] Read https://www.racegow.com/leaderboards and find `PAPFPV` (match case-insensitively, allow
+  for variants of the nickname). Report the overall rank, and per-track rank and time if listed.
+- [ ] The page may be rendered with JavaScript: try a plain fetch first, fall back to a headless
+  browser (Playwright) if the table isn't in the HTML.
+- [ ] Output a small JSON (`rank`, `of`, `points`/`time`, `fetched_at`, source URL) that the upload
+  skill reads for the video description.
+- [ ] Say clearly when the pilot isn't found or the page layout changed, instead of guessing.
