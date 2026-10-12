@@ -73,6 +73,9 @@ looks finished and the overlay reads better.
 - [x] Option `--background blur|black` (default `blur`), `--blur-strength` (default 40 px).
 - [x] Update the skill: SKILL.md render step, README options table and rendering section,
   method.md, and refresh `docs/overlay-final.jpg`.
+- [ ] Test-render one clip with `--renderer opencv` (only HyperFrames was test-rendered; the blur is
+  in the shared cut, so it should match).
+- Decided: clips already on YouTube keep their black bars (no re-upload); new clips get the blur.
 
 ## Feature: background music in the exported clip (optional)
 
@@ -137,10 +140,10 @@ Upload the exported clip to the pilot's YouTube channel (pilot nickname **PAPFPV
 whichever one the pilot picks at the Google sign-in; the first upload went to **niuk**
 (@niuk9290), not youtube.com/irom77.
 
-**Status: in progress.** The first upload was done by hand with a prototype script on 2026-10-12:
-https://youtu.be/GG7-ezzppak (RaceGOW6 Track 2, 41.43 s, public). The prototype, `yt_upload.py`
-(`auth` and `upload` commands, google-api-python-client + google-auth-oauthlib), is outside the
-repo. What's left is turning it into a skill that builds the title and description by itself.
+**Status: in progress.** Two uploads were done by hand with a prototype script on 2026-10-12, both
+public on niuk: https://youtu.be/GG7-ezzppak (RaceGOW6 Track 2, 41.43 s) and
+https://youtu.be/zNN1ugb4v4I (RaceGOW6 Track 1). The prototype, `yt_upload.py` (`auth` and
+`upload` commands, google-api-python-client + google-auth-oauthlib), is outside the repo. What's left is turning it into a skill that builds the title and description by itself.
 
 - [ ] Title includes: the current RaceGOW number, the track number, the 3-lap time and `PAPFPV`,
   format `RaceGOW6 Track 2 | 41.43s best 3 consecutive laps | PAPFPV`. Take the RaceGOW/track
