@@ -39,7 +39,7 @@ evening of work.
 
 <p align="center">
   <img src="docs/overlay-final.jpg" alt="Exported clip: best 3 consecutive laps overlay with blurred side bars, total 41.43 s" width="80%">
-  <br><sub>Real output: 11 recordings, 36 minutes of footage, 154 laps found, 101 clean. Best: 10.27 + 10.33 + 10.22 = <b>30.82 s</b>.</sub>
+  <br><sub>Real output, RaceGOW6 Track 2: 23 recordings, 72 minutes of footage, 249 laps found, 139 clean. Best: 13.85 + 13.85 + 13.73 = <b>41.43 s</b>.</sub>
 </p>
 
 ---
@@ -114,7 +114,7 @@ detailed method is in [`references/method.md`](skills/fpv-best-laps/references/m
 
 ## Accuracy
 
-On the test session (HDZero, 1280×720 at 60 fps), the fully automatic run picked the same three
+On the RaceGOW6 Track 1 test session (HDZero, 1280×720 at 60 fps), the fully automatic run picked the same three
 laps as careful manual frame-stepping: **30.82 s** automatic vs **30.77 s** manual. The small
 difference comes from the automatic timing line sitting on the start spot just in front of the gate.
 Per-crossing accuracy is about ±2–3 frames (±0.05 s at 60 fps).

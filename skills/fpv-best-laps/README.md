@@ -45,7 +45,7 @@ A single run over a folder produces:
 | `sheets/*.jpg` | Contact sheets of the gate crossings, so a person (or an agent that can view images) can confirm the timing line is in the right place. |
 | `track.json` + `track.npz` | The learned track profile. Reuse it for later sessions on the same layout. |
 
-Example `report.md` result, from 11 HDZero recordings (36 min of footage):
+Example `report.md` result, from 11 HDZero recordings of RaceGOW6 Track 1 (36 min of footage):
 
 | Lap | Time | Frames | Video time |
 |---|---|---|---|
