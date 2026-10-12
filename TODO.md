@@ -55,3 +55,35 @@ when the run was flown.
   (`assets/overlay/index.html`, new `__DATE__` placeholder) and OpenCV (`render.py`).
 - [ ] Format option `--date-format` (default `%Y-%m-%d`), and `--no-date` to hide it.
 - [ ] Docs: SKILL.md render step and README options table.
+
+## Feature: blurred background in the exported clip
+
+HDZero (and other 4:3) footage sits in a 16:9 frame with black bars on the sides, and the lap panel
+sits on top of the picture. Fill that space with a blurred, darkened copy of the footage so the clip
+looks finished and the overlay reads better.
+
+- Decided: blur the **side bars only** (a blurred, scaled-up, darkened copy of the footage behind the
+  sharp 4:3 picture). It is the simplest and fastest to render in both renderers; the lap panel stays
+  as it is. A frosted backdrop behind the panel can come later if wanted.
+- [ ] Detect the active picture area per video (the black bars are already known: 4:3 picture at
+  x160..1120 in 1280x720) instead of hard-coding it.
+- [ ] HyperFrames renderer: a second `<video>` layer scaled to cover, with CSS `filter: blur()`
+  and dimming, under the sharp footage (`assets/overlay/index.html`).
+- [ ] OpenCV renderer: same result with `cv2.GaussianBlur` on a downscaled frame (cheap), then
+  composite (`render.py`).
+- [ ] Option `--background blur|black` (default `blur` once it looks right), `--blur-strength`.
+- [ ] Update the skill: SKILL.md render step, README options table, and refresh
+  `docs/overlay-final.jpg`.
+
+## Feature: background music in the exported clip (optional)
+
+The raw clip only has motor noise. A music bed makes it shareable. Keep it simple.
+
+- [ ] Option `--music <file>` to mix a track under the clip, and `--music auto` to pick a random
+  royalty-free track from a small bundled set (check each track's licence allows redistribution in
+  a public repo; otherwise download on demand or generate one).
+- [ ] Mix: music trimmed to the clip length, fade in/out (~1 s), motor audio kept but turned down
+  (around -12 dB, adjustable with `--source-volume`). One `ffmpeg` pass, the same for both renderers.
+- Decided: **off by default** (no music, original audio kept, e.g. for race-verification clips).
+  The mix above is applied only when music is asked for (`--music`).
+- [ ] Docs: SKILL.md render step and README options table.
