@@ -73,8 +73,8 @@ looks finished and the overlay reads better.
 - [x] Option `--background blur|black` (default `blur`), `--blur-strength` (default 40 px).
 - [x] Update the skill: SKILL.md render step, README options table and rendering section,
   method.md, and refresh `docs/overlay-final.jpg`.
-- [ ] Test-render one clip with `--renderer opencv` (only HyperFrames was test-rendered; the blur is
-  in the shared cut, so it should match).
+- [x] Test-render with `--renderer opencv`: Track 2 41.43 s clip, blurred bars identical to
+  HyperFrames, 2607 frames, audio kept, 3 min (HyperFrames: ~10 min).
 - Decided: clips already on YouTube keep their black bars (no re-upload); new clips get the blur.
 
 ## Feature: background music in the exported clip (optional)
