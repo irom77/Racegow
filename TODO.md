@@ -87,3 +87,21 @@ The raw clip only has motor noise. A music bed makes it shareable. Keep it simpl
 - Decided: **off by default** (no music, original audio kept, e.g. for race-verification clips).
   The mix above is applied only when music is asked for (`--music`).
 - [ ] Docs: SKILL.md render step and README options table.
+
+## Feature: race commentary in the exported clip (optional)
+
+Energetic, race-caster style commentary over the clip, built from the real lap data, so every clip
+sounds different and calls what actually happened. Can be used alone or on top of a quiet music bed.
+
+- [ ] Event timeline from `result.json`: takeoff/first crossing, each gate crossing with its lap
+  time, the final total, and context (personal best, rank, gap to the next-best window).
+- [ ] Script: short, punchy lines timed to land on the crossings (the clip is only ~30 s). Written by
+  an LLM (Claude) for variety, with fixed templates as an offline fallback (`--commentary-style
+  template`). Keep each line short enough to finish before the next event.
+- [ ] Voice: text-to-speech, default `hyperframes tts` (no extra install); optional cloud voice
+  (ElevenLabs / OpenAI) for a more excited caster sound, behind an API key.
+- [ ] Mix: each line starts at its event; motor audio turned down while the voice speaks (and the
+  music bed too, if `--music` is also set). Reuses the music feature's single `ffmpeg` mix pass.
+- [ ] Off by default; enable with `--commentary`. Save the script with timestamps as
+  `<work>/export/commentary.txt` so it can be reviewed or edited and re-rendered.
+- [ ] Docs: SKILL.md render step and README options table.
