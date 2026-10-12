@@ -31,7 +31,8 @@ evening of work.
 |---|---|
 | ⏱️ **Reads your OSD** | Finds a Betaflight `mm:ss` timer anywhere on screen (one is enough), reads it with template OCR, and knows exactly when you were armed. |
 | 🚩 **Learns the start gate** | No track setup. It spots the parked start position in each recording, learns the lap from how the footage repeats, and pins the timing line on the start gate. Works on any layout. |
-| 💥 **Throws out crashes** | Off-line laps, disarms, stalls, missed gates and impossibly fast "laps" are rejected, each with a reason. |
+| 💥 **Throws out crashes** | Off-line laps, disarms, stalls, missed gates, laps that skip part of the course and impossibly fast "laps" are rejected, each with a reason. |
+| 🛡️ **Won't fake a time** | Checks its own reference lap: if the laps it finds are too short for the track or don't chain gate to gate, you get a warning and no result, never a convincing wrong time. |
 | 🏁 **Best 3 in a row** | A sliding window over every clean lap in every video, ranked globally. |
 | 🎬 **Exports the highlight** | Frame-accurate cut with a live lap clock, lap 1/2/3 and total, aligned on the left edge. Rendered with HyperFrames, or pure OpenCV when Node isn't installed. |
 | 🤖 **Works with your AI agent** | Ships as an Agent Skill: ask Claude Code, Codex or any coding agent *"find my best 3 laps in this folder"*. |
@@ -63,6 +64,13 @@ verification images in `sheets/`, and the clip in `export/best3_laps_<video>_<to
 Prefer to check before rendering? Run `analyze` first, look at `sheets/rank1_crossings.jpg` (all four
 gate crossings should show the same spot), then `render --rank 1`.
 
+**The official layout is the real reference.** The tool compares your laps with each other, so it
+can't tell a consistently wrong line (say, a skipped dive) from the right one. Check the winning
+laps against the organiser's demo flythrough. If `report.md` warns that the reference lap looks
+wrong, re-run with `--anchor VIDEO:FRAME` on a start-gate crossing that begins a lap you know you
+flew correctly. Once a batch checks out, reuse its profile for later sessions on the same layout with
+`--track <work>/track.json`.
+
 ### Use it from an AI coding agent
 
 Link the skill folder where your agent looks for skills:
@@ -86,10 +94,10 @@ and reports the lap table. Other agents (Cursor, Gemini CLI, Aider...) can be po
 flowchart LR
     V[("DVR folder")] --> X["Extract<br/>one decode per video<br/>thumbnails · motion · OSD cells"]
     X --> A["Arm state<br/>OSD timer OCR"]
-    X --> C["Track calibration<br/>parked start → launch<br/>→ reference lap"]
+    X --> C["Track calibration<br/>parked start → launch<br/>→ reference lap<br/>(shortcut check)"]
     A --> D
     C --> D["Lap detection<br/>subsequence DTW<br/>+ 60 fps gate refine"]
-    D --> F["Clean filter<br/>crash · disarm · stall<br/>gate fit · too fast"]
+    D --> F["Clean filter<br/>crash · disarm · stall<br/>gate fit · too short · too fast"]
     F --> W["Best 3 consecutive<br/>sliding window"]
     W --> R["Render<br/>HyperFrames / OpenCV"]
     R --> O[("best3_laps.mp4")]
