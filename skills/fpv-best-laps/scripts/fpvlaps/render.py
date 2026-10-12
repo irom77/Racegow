@@ -134,7 +134,7 @@ def render_opencv(p, out, subtitle):
 
 
 def render(work, rank=1, renderer="auto", lead=1.0, title=None, keep_clip=False, background="blur",
-           blur_strength=40):
+           blur_strength=40, music=None, music_volume=-10.0):
     work = Path(work)
     p = plan(work, rank, lead)
     src = p["video"]["path"]
@@ -165,8 +165,28 @@ def render(work, rank=1, renderer="auto", lead=1.0, title=None, keep_clip=False,
         render_opencv(p, out, subtitle)
     if not keep_clip:
         p["clip"].unlink(missing_ok=True)       # intermediate cut; the export folder keeps only deliverables
+    mus = None
+    if music:
+        from .music import synth_track, mix_music
+        secs = p["n"] / p["fps"]
+        if music == "auto":
+            track = exp / f"music_rank{rank}.wav"
+            mus = synth_track(secs, track)
+            print(f"  music: generated track, seed {mus['seed']}, {mus['bpm']} bpm")
+        else:
+            track, mus = Path(music), dict(file=str(music))
+            if not track.is_file():
+                raise SystemExit(f"Music file not found: {music}")
+            print(f"  music: {track.name}")
+        mixed = out.with_suffix(".music.mp4")
+        mix_music(out, track, mixed, secs, music_db=music_volume)
+        mixed.replace(out)
+        if music == "auto" and not keep_clip:
+            track.unlink(missing_ok=True)       # generated track is an intermediate; its seed is in render_rankN.json
+        mus["music_volume_db"] = music_volume
     meta = dict(output=str(out), renderer=use, video=p["video"]["name"], source_frames=[p["first"], p["first"] + p["n"] - 1],
-                gates_clip_s=p["gates"], laps_s=p["times"], total_s=p["total"], background="blur" if vf else "black")
+                gates_clip_s=p["gates"], laps_s=p["times"], total_s=p["total"], background="blur" if vf else "black",
+                music=mus)
     (exp / f"render_rank{rank}.json").write_text(json.dumps(meta, indent=1))
     print(f"  exported {out}  ({use})")
     return out

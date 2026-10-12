@@ -8,6 +8,7 @@ the clip with a left-aligned lap-time overlay.
   python fpvlaps.py analyze  --videos DIR [--work DIR] [--track PROFILE.json] [--anchor VIDEO:FRAME]
   python fpvlaps.py render   --work DIR [--rank 1] [--renderer auto|hyperframes|opencv]
                              [--background blur|black] [--blur-strength 40]
+                             [--music FILE|auto] [--music-volume -10]
 
 `run` = extract + analyze + render. Everything is cached under the work directory, so re-running
 `analyze` after a `--anchor` correction takes seconds."""
@@ -36,6 +37,10 @@ def main():
     ap.add_argument("--background", default="blur", choices=["blur", "black"],
                     help="fill the black side bars with a blurred copy of the footage (default) or keep them")
     ap.add_argument("--blur-strength", type=float, default=40, help="background blur radius in pixels (default 40)")
+    ap.add_argument("--music", help="mix music under the clip: an audio file, or 'auto' for a generated track "
+                                    "(default: no music, original audio only)")
+    ap.add_argument("--music-volume", type=float, default=-10.0,
+                    help="with --music: music level relative to the motor audio, in dB (default -10)")
     ap.add_argument("--title", help="overlay subtitle (default: '<videos folder> · <video>')")
     a = ap.parse_args()
 
@@ -62,7 +67,8 @@ def main():
         from fpvlaps.render import render
         print("[3/3] rendering")
         render(work, rank=a.rank, renderer=a.renderer, lead=a.lead, title=a.title,
-               background=a.background, blur_strength=a.blur_strength)
+               background=a.background, blur_strength=a.blur_strength, music=a.music,
+               music_volume=a.music_volume)
 
 
 if __name__ == "__main__":

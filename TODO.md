@@ -77,18 +77,22 @@ looks finished and the overlay reads better.
   HyperFrames, 2607 frames, audio kept, 3 min (HyperFrames: ~10 min).
 - Decided: clips already on YouTube keep their black bars (no re-upload); new clips get the blur.
 
-## Feature: background music in the exported clip (optional)
+## Feature: background music in the exported clip (done)
 
 The raw clip only has motor noise. A music bed makes it shareable. Keep it simple.
 
-- [ ] Option `--music <file>` to mix a track under the clip, and `--music auto` to pick a random
-  royalty-free track from a small bundled set (check each track's licence allows redistribution in
-  a public repo; otherwise download on demand or generate one).
-- [ ] Mix: music trimmed to the clip length, fade in/out (~1 s), motor audio kept but turned down
-  (around -12 dB, adjustable with `--source-volume`). One `ffmpeg` pass, the same for both renderers.
+- [x] Option `--music <file>` to mix a track under the clip, and `--music auto` for a random track.
+  Instead of bundling downloaded tracks (licence checks in a public repo), `auto` generates one with
+  numpy (`music.py`: kick, clap, hats, off-beat bass, arpeggio with delay; random tempo 128-144 bpm,
+  minor key, chords and patterns; the seed is saved in `render_rankN.json`).
+- [x] Mix: music looped/trimmed to the clip length, 1 s fade in, 1.5 s fade out. Both music and motor
+  audio levelled to -16 LUFS, then the music placed under the motor with `--music-volume` (default
+  -10 dB, chosen by ear on the Track 2 clip; the first try, motor 12 dB under the music, drowned the
+  motor). One `ffmpeg` pass after either renderer, video stream copied (a few seconds).
 - Decided: **off by default** (no music, original audio kept, e.g. for race-verification clips).
   The mix above is applied only when music is asked for (`--music`).
-- [ ] Docs: SKILL.md render step and README options table.
+- [x] Docs: SKILL.md render step, README options table and rendering section, method.md.
+- [ ] Optional: `--music-seed N` to re-create a generated track the pilot liked.
 
 ## Feature: race commentary in the exported clip (optional)
 

@@ -179,6 +179,8 @@ $PY $CLI render  --work ./w --rank 1                      # export a verified ra
 | `--title TEXT` | `<folder> · <video>` | Overlay subtitle. |
 | `--background` | `blur` | `blur` fills the black side bars (4:3 footage in a 16:9 frame) with a blurred, dimmed copy of the footage. `black` keeps the bars. |
 | `--blur-strength PX` | 40 | Blur radius of that background. |
+| `--music FILE\|auto` | off | Mix music under the clip. `auto` generates a fresh upbeat electronic track (random tempo, key and patterns; no licence issues). Off by default, so the clip keeps only its own audio. |
+| `--music-volume DB` | -10 | With `--music`: music level relative to the motor audio (more negative = quieter music). |
 
 **Timing** (measured on 36 min of 720p60 HEVC, 22-core machine, reading a Windows drive from WSL):
 
@@ -490,6 +492,12 @@ agent then inspects that rank's crossing sheet and falls back to the next rank i
    for free. Skipped when there are no bars, or with `--background black`.
 3. **Overlay.** One left-anchored panel: subtitle, a live clock for the lap in progress, lap 1/2/3
    times, and the total. Laps not yet flown show `0.00s`; the final frames show all final numbers.
+4. **Music** (only with `--music`). One more ffmpeg pass on the finished clip: the music is looped or
+   trimmed to the clip, both it and the motor audio are levelled to -16 LUFS, the music is placed
+   `--music-volume` (-10 dB) under the motor, and it fades in over 1 s and out over 1.5 s. The video
+   stream is copied untouched. `--music auto` first generates the track with numpy
+   (`music.py`: kick, clap, hats, off-beat bass and an arpeggio with a delay, 128-144 bpm in a minor
+   key); its seed is saved in `render_rankN.json`.
 
 ```mermaid
 flowchart LR

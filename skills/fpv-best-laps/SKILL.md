@@ -92,7 +92,7 @@ next rank whose sheet is consistent, render it with `--rank N`, and say why rank
 ### 4. Export
 
 ```bash
-.fpvlaps-venv/bin/python <skill-dir>/scripts/fpvlaps.py render --work "<work dir>" [--rank 1] [--renderer auto|hyperframes|opencv] [--background blur|black]
+.fpvlaps-venv/bin/python <skill-dir>/scripts/fpvlaps.py render --work "<work dir>" [--rank 1] [--renderer auto|hyperframes|opencv] [--background blur|black] [--music FILE|auto]
 ```
 
 Always pass `--rank` explicitly (the rank you verified). Rendering takes minutes, so run it in the
@@ -103,7 +103,9 @@ The output is `<work>/export/best3_laps_<video>_<total>s.mp4`. The source frames
 frame-accurately, with 1 s before the first crossing and 1 s after the last (`--lead`), keeping the
 original audio. `--title` changes the overlay subtitle. Black side bars (4:3 footage such as HDZero)
 are filled with a blurred, dimmed copy of the footage by default. `--background black` keeps them,
-and `--blur-strength` (default 40 px) sets the blur.
+and `--blur-strength` (default 40 px) sets the blur. Music is off by default (the clip keeps its own
+audio). Add it only when the user asks: `--music <file>`, or `--music auto` for a generated track;
+the music sits 10 dB under the motor audio (`--music-volume`, more negative = quieter).
 If the user wants it somewhere specific, copy the file there.
 The overlay counts up live: mid-clip frames show the running lap and total, and laps not yet flown
 show 0.00s. Check the last second of the clip to see the final numbers.
