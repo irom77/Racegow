@@ -38,7 +38,7 @@ evening of work.
 | 🤖 **Works with your AI agent** | Ships as an Agent Skill: ask Claude Code, Codex or any coding agent *"find my best 3 laps in this folder"*. |
 
 <p align="center">
-  <img src="docs/overlay-final.jpg" alt="Exported clip: best 3 consecutive laps overlay, total 30.82 s" width="80%">
+  <img src="docs/overlay-final.jpg" alt="Exported clip: best 3 consecutive laps overlay with blurred side bars, total 41.43 s" width="80%">
   <br><sub>Real output: 11 recordings, 36 minutes of footage, 154 laps found, 101 clean. Best: 10.27 + 10.33 + 10.22 = <b>30.82 s</b>.</sub>
 </p>
 

@@ -177,6 +177,8 @@ $PY $CLI render  --work ./w --rank 1                      # export a verified ra
 | `--renderer` | `auto` | `auto`, `hyperframes` or `opencv`. |
 | `--lead S` | 1.0 | Seconds of footage kept before the first and after the last crossing. |
 | `--title TEXT` | `<folder> · <video>` | Overlay subtitle. |
+| `--background` | `blur` | `blur` fills the black side bars (4:3 footage in a 16:9 frame) with a blurred, dimmed copy of the footage. `black` keeps the bars. |
+| `--blur-strength PX` | 40 | Blur radius of that background. |
 
 **Timing** (measured on 36 min of 720p60 HEVC, 22-core machine, reading a Windows drive from WSL):
 
@@ -481,12 +483,18 @@ agent then inspects that rank's crossing sheet and falls back to the next rank i
 
 1. **Cut.** ffmpeg seeks before the input and re-encodes (`libx264`, CRF 14), so the clip starts
    on the exact frame. 1 s lead-in and lead-out by default; original audio kept.
-2. **Overlay.** One left-anchored panel: subtitle, a live clock for the lap in progress, lap 1/2/3
+2. **Background.** The picture area is found from the brightest value each pixel column and row
+   reaches over ~24 frames (HDZero 4:3: x 160..1119 of 1280x720). In the same ffmpeg pass the bars
+   get a copy of the picture scaled to cover the frame, blurred at quarter resolution (cheap) and
+   dimmed to 60%, with the sharp picture on top at its original position. Both renderers get this
+   for free. Skipped when there are no bars, or with `--background black`.
+3. **Overlay.** One left-anchored panel: subtitle, a live clock for the lap in progress, lap 1/2/3
    times, and the total. Laps not yet flown show `0.00s`; the final frames show all final numbers.
 
 ```mermaid
 flowchart LR
-    P["plan()<br/>crossings → clip time"] --> CUT["cut_clip()"]
+    P["plan()<br/>crossings → clip time"] --> BG["active_area()<br/>blur_filter()"]
+    BG --> CUT["cut_clip()<br/>+ blurred bars"]
     CUT --> Q{"--renderer"}
     Q -- "hyperframes<br/>(auto, if npx)" --> H1["Copy overlay/index.html + fonts<br/>fill __W__ __H__ __FPS__<br/>__DURATION__ __GATES__ __SUBTITLE__"]
     H1 --> H2["npx hyperframes@0.8.145 render"]

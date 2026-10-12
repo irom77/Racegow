@@ -92,7 +92,7 @@ next rank whose sheet is consistent, render it with `--rank N`, and say why rank
 ### 4. Export
 
 ```bash
-.fpvlaps-venv/bin/python <skill-dir>/scripts/fpvlaps.py render --work "<work dir>" [--rank 1] [--renderer auto|hyperframes|opencv]
+.fpvlaps-venv/bin/python <skill-dir>/scripts/fpvlaps.py render --work "<work dir>" [--rank 1] [--renderer auto|hyperframes|opencv] [--background blur|black]
 ```
 
 Always pass `--rank` explicitly (the rank you verified). Rendering takes minutes, so run it in the
@@ -101,7 +101,9 @@ the OpenCV renderer 3-10 min, mostly cutting and encoding from a slow drive.
 
 The output is `<work>/export/best3_laps_<video>_<total>s.mp4`. The source frames are cut
 frame-accurately, with 1 s before the first crossing and 1 s after the last (`--lead`), keeping the
-original audio. `--title` changes the overlay subtitle.
+original audio. `--title` changes the overlay subtitle. Black side bars (4:3 footage such as HDZero)
+are filled with a blurred, dimmed copy of the footage by default. `--background black` keeps them,
+and `--blur-strength` (default 40 px) sets the blur.
 If the user wants it somewhere specific, copy the file there.
 The overlay counts up live: mid-clip frames show the running lap and total, and laps not yet flown
 show 0.00s. Check the last second of the clip to see the final numbers.

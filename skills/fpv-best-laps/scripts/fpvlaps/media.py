@@ -53,10 +53,10 @@ def read_frames(path, start, count, step=1):
     cap.release()
 
 
-def cut_clip(src, dst, start_frame, n_frames, fps):
-    """Frame-accurate re-encode of [start_frame, start_frame + n_frames) with audio."""
+def cut_clip(src, dst, start_frame, n_frames, fps, vf=None):
+    """Frame-accurate re-encode of [start_frame, start_frame + n_frames) with audio (optional video filter)."""
     cmd = [ffmpeg_exe(), "-loglevel", "error", "-y", "-ss", f"{start_frame / fps:.6f}", "-i", str(src),
-           "-frames:v", str(n_frames), "-t", f"{n_frames / fps:.6f}", "-c:v", "libx264", "-preset", "fast",
+           *(["-vf", vf] if vf else []), "-frames:v", str(n_frames), "-t", f"{n_frames / fps:.6f}", "-c:v", "libx264", "-preset", "fast",
            "-crf", "14", "-pix_fmt", "yuv420p", "-r", f"{fps:g}", "-c:a", "aac", "-b:a", "160k",
            "-movflags", "+faststart", str(dst)]
     subprocess.run(cmd, check=True)

@@ -67,7 +67,9 @@ track that starts parked at the gate".
    A winning window with a lap more than 10% faster than typical gets a **warning** in `report.md`,
    which means check the crossings sheet before trusting it.
 6. **Best window**: every run of 3 clean laps that share crossings, ranked by total.
-7. **Render** (`render.py`): ffmpeg cuts the clip frame-accurately. The overlay is either the
+7. **Render** (`render.py`): ffmpeg cuts the clip frame-accurately and, in the same pass, fills
+   black side bars with a blurred, dimmed copy of the picture (`active_area`, `blur_filter`;
+   `--background black` turns it off). The overlay is either the
    HyperFrames composition `assets/overlay/index.html` (GSAP timeline, running lap clock, pinned
    `hyperframes@0.8.145`) or the OpenCV fallback with the same layout.
 

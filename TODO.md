@@ -56,7 +56,7 @@ when the run was flown.
 - [ ] Format option `--date-format` (default `%Y-%m-%d`), and `--no-date` to hide it.
 - [ ] Docs: SKILL.md render step and README options table.
 
-## Feature: blurred background in the exported clip
+## Feature: blurred background in the exported clip (done)
 
 HDZero (and other 4:3) footage sits in a 16:9 frame with black bars on the sides, and the lap panel
 sits on top of the picture. Fill that space with a blurred, darkened copy of the footage so the clip
@@ -65,15 +65,14 @@ looks finished and the overlay reads better.
 - Decided: blur the **side bars only** (a blurred, scaled-up, darkened copy of the footage behind the
   sharp 4:3 picture). It is the simplest and fastest to render in both renderers; the lap panel stays
   as it is. A frosted backdrop behind the panel can come later if wanted.
-- [ ] Detect the active picture area per video (the black bars are already known: 4:3 picture at
-  x160..1120 in 1280x720) instead of hard-coding it.
-- [ ] HyperFrames renderer: a second `<video>` layer scaled to cover, with CSS `filter: blur()`
-  and dimming, under the sharp footage (`assets/overlay/index.html`).
-- [ ] OpenCV renderer: same result with `cv2.GaussianBlur` on a downscaled frame (cheap), then
-  composite (`render.py`).
-- [ ] Option `--background blur|black` (default `blur` once it looks right), `--blur-strength`.
-- [ ] Update the skill: SKILL.md render step, README options table, and refresh
-  `docs/overlay-final.jpg`.
+- [x] Detect the active picture area per video (`active_area`: brightest value per column/row over
+  ~24 frames; HDZero gives x 160..1119 of 1280x720).
+- [x] Both renderers: done once in the ffmpeg cut (`blur_filter`: scale to cover, blur at quarter
+  resolution, dim to 60%, sharp picture on top). Simpler than separate CSS and OpenCV layers, and
+  identical in both; `assets/overlay/index.html` is unchanged.
+- [x] Option `--background blur|black` (default `blur`), `--blur-strength` (default 40 px).
+- [x] Update the skill: SKILL.md render step, README options table and rendering section,
+  method.md, and refresh `docs/overlay-final.jpg`.
 
 ## Feature: background music in the exported clip (optional)
 

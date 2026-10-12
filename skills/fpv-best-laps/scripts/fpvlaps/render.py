@@ -10,7 +10,7 @@ from pathlib import Path
 import numpy as np
 import cv2
 from .config import ASSETS
-from .media import cut_clip, ffmpeg_exe, ffprobe_exe, env_with_tools
+from .media import cut_clip, ffmpeg_exe, ffprobe_exe, env_with_tools, read_frames
 
 HYPERFRAMES = "hyperframes@0.8.145"     # pinned for reproducible renders
 
@@ -29,6 +29,40 @@ def plan(work, rank, lead):
     gates = [(c - first) / fps for c in crossings]
     return dict(R=R, best=b, video=v, fps=fps, first=first, n=last - first + 1, gates=gates,
                 times=[l["time"] for l in b["laps"]], total=b["total"])
+
+
+def active_area(src, first, n, samples=24, thr=24):
+    """Picture area (x, y, w, h) inside letterbox/pillarbox bars, from the brightest value each column
+    and row reaches over frames sampled across the clip. Even-aligned for yuv420p."""
+    peak = None
+    for _, fr in read_frames(src, first, n, step=max(1, n // samples)):
+        g = cv2.cvtColor(fr, cv2.COLOR_BGR2GRAY)
+        peak = g if peak is None else np.maximum(peak, g)
+    if peak is None:
+        return None
+    cols, rows = np.where(peak.max(axis=0) > thr)[0], np.where(peak.max(axis=1) > thr)[0]
+    if not len(cols) or not len(rows):
+        return None
+    x0, x1 = (cols[0] + 1) & ~1, (cols[-1] + 1) & ~1
+    y0, y1 = (rows[0] + 1) & ~1, (rows[-1] + 1) & ~1
+    H, W = peak.shape
+    return int(x0), int(y0), int(x1 - x0), int(y1 - y0), W, H
+
+
+def blur_filter(area, strength):
+    """ffmpeg filtergraph: the bars filled with a blurred, darkened, scaled-to-cover copy of the picture,
+    the sharp picture on top at its original position. None when there are no bars worth filling."""
+    if not area:
+        return None
+    x, y, w, h, W, H = area
+    if w * h > 0.96 * W * H:
+        return None
+    sigma = max(1.0, strength / 4)     # blur runs at quarter resolution: cheap, and smooth after upscaling
+    return (f"split[a][b];"
+            f"[a]crop={w}:{h}:{x}:{y},scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},"
+            f"scale={W // 4}:{H // 4},gblur=sigma={sigma:g},scale={W}:{H},eq=saturation=0.85,"
+            f"colorchannelmixer=rr=0.6:gg=0.6:bb=0.6[bg];"
+            f"[b]crop={w}:{h}:{x}:{y}[fg];[bg][fg]overlay={x}:{y}")
 
 
 def hyperframes_ready():
@@ -99,14 +133,21 @@ def render_opencv(p, out, subtitle):
     cap.release()
 
 
-def render(work, rank=1, renderer="auto", lead=1.0, title=None, keep_clip=False):
+def render(work, rank=1, renderer="auto", lead=1.0, title=None, keep_clip=False, background="blur",
+           blur_strength=40):
     work = Path(work)
     p = plan(work, rank, lead)
     src = p["video"]["path"]
     exp = work / "export"
     exp.mkdir(exist_ok=True)
     p["clip"] = exp / f"clip_rank{rank}.mp4"
-    cut_clip(src, p["clip"], p["first"], p["n"], p["fps"])
+    vf = None
+    if background == "blur":
+        area = active_area(src, p["first"], p["n"])
+        vf = blur_filter(area, blur_strength)
+        print(f"  background: blurred bars around the {area[2]}x{area[3]} picture" if vf else
+              "  background: no black bars found, footage left as is")
+    cut_clip(src, p["clip"], p["first"], p["n"], p["fps"], vf)
     cap = cv2.VideoCapture(str(p["clip"]))
     p["w"], p["h"] = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     cap.release()
@@ -125,7 +166,7 @@ def render(work, rank=1, renderer="auto", lead=1.0, title=None, keep_clip=False)
     if not keep_clip:
         p["clip"].unlink(missing_ok=True)       # intermediate cut; the export folder keeps only deliverables
     meta = dict(output=str(out), renderer=use, video=p["video"]["name"], source_frames=[p["first"], p["first"] + p["n"] - 1],
-                gates_clip_s=p["gates"], laps_s=p["times"], total_s=p["total"])
+                gates_clip_s=p["gates"], laps_s=p["times"], total_s=p["total"], background="blur" if vf else "black")
     (exp / f"render_rank{rank}.json").write_text(json.dumps(meta, indent=1))
     print(f"  exported {out}  ({use})")
     return out
