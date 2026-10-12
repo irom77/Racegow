@@ -134,8 +134,8 @@ sequenceDiagram
     Note over C: extract (cached) -> calibrate -> detect -> filter -> rank
     C->>FS: report.md, laps.csv, sheets/*.jpg, track.json
     A->>FS: view reference_lap.jpg + rank1_crossings.jpg
-    alt timing line in the wrong place
-        A->>C: analyze ... --anchor VIDEO:FRAME
+    alt "reference lap looks wrong" warning, or timing line in the wrong place
+        A->>C: analyze ... --anchor VIDEO:FRAME (a crossing that begins a full, correct lap)
     else "Check before trusting" warning and inconsistent sheet
         A->>A: fall back to the next consistent rank N
     end
@@ -383,17 +383,29 @@ flowchart TB
     F --> G
     G --> H{"Both ends look<br/>like the same place?<br/>(match ≥ 0.6)"}
     H -- no --> X["discard"]
-    H -- yes --> I["Reference lap =<br/>lowest DTW cost across all videos<br/>+ penalty for |duration − P|"]
-    C --> J["DTW-align each takeoff (sped up 1–3×)<br/>into the reference lap cycle"]
+    H -- yes --> I["Rank candidates:<br/>DTW cost across all videos<br/>+ penalty for |duration − P|"]
+    C --> J["DTW-align each takeoff (sped up 1–3×)<br/>into the candidate lap cycle"]
     I --> J
     J --> K["Circular mean of launch phase =<br/>start line"]
-    K --> L["Re-cut reference lap to begin<br/>and end on the start line"]
-    L --> M[("track.json / track.npz")]
+    K --> L["Re-cut candidate to begin<br/>and end on the start line"]
+    L --> T{"Laps it finds:<br/>typical ≥ 0.93 P and<br/>≥ 70% chained?"}
+    T -- "no: next candidate (up to 6)" --> I
+    T -- yes --> M[("track.json / track.npz")]
 ```
 
 The key idea is that a takeoff flies the opening of a lap, only slower. Wherever the launches land
 in the lap cycle is the start line. The resulting timing line sits on the start spot directly in
 front of the gate, about 0.4 s before the quad passes under the gate's top bar.
+
+**Shortcut check.** A short loop, for example one that skips a dive and flies straight back to the
+start gate, also starts and ends at the start gate and matches itself very well, so the
+best-ranked candidate can be wrong. So can one whose ends aren't at the gate. Each candidate is
+judged by the laps it produces: the typical clean lap must be at least 0.93× the lap period, and at
+least 70% of back-to-back laps must share their crossing (with ends off the gate, every lap ends
+seconds before the next one starts). Measured on real sessions: correct references give typical
+laps of 1.00–1.02× P and 86–88% chained; wrong ones 0.70–0.88× P and 24–49% chained. If no
+candidate passes, `report.md` opens with **"Warning: the reference lap looks wrong"** and the fix
+is `--anchor` on a known-correct lap. With `--anchor` or `--track` the same checks run and warn.
 
 Overrides:
 
@@ -426,8 +438,8 @@ flowchart TB
     C1 -- no --> R1["off-line / crash"]
     C1 -- yes --> C2{"Start and end in the<br/>same armed segment?"}
     C2 -- no --> R2["disarmed"]
-    C2 -- yes --> C3{"0.6 P ≤ duration ≤ 1.5 P?"}
-    C3 -- no --> R3["implausible length"]
+    C2 -- yes --> C3{"0.82 P ≤ duration ≤ 1.5 P?"}
+    C3 -- no --> R3["implausible length<br/>(too short: skipped part of the course)"]
     C3 -- yes --> C4{"Motion stays ≥ 1.5<br/>(no 0.5 s stall)?"}
     C4 -- no --> R4["stopped / crashed"]
     C4 -- yes --> C5{"Both crossings fit the<br/>consensus gate pass ≥ 0.55?"}
@@ -437,7 +449,9 @@ flowchart TB
     C6 -- yes --> OK["CLEAN"]
 ```
 
-All failing reasons are recorded in `laps.csv`, not just the first. The DTW threshold adapts to
+P here is measured from the session's own footage, also when a saved `--track` profile is reused,
+so a pilot who got faster since the profile was made isn't penalised. All failing reasons are
+recorded in `laps.csv`, not just the first. The DTW threshold adapts to
 each session (a percentile of its own lap costs), so a session flown cleanly and one with many
 crashes are both judged sensibly.
 
@@ -556,7 +570,16 @@ Tested on Track1 / Air65_2: 11 HDZero recordings, 1280×720 at 60 fps, 36 minute
   a profile built from a bigger session with `--track`.
 - **Loop-backs.** A lap where the pilot flies back through the gate area is ambiguous. The fast-lap
   warning catches the usual symptom.
-- **Course cuts** that still look like the reference lap are not detected.
+- **Course cuts** that still look like the reference lap are not detected unless they make the lap
+  clearly shorter than the lap period. The tool only compares laps with each other: the official
+  layout (e.g. the organiser's demo flythrough) is the real reference, so check the winning laps
+  against it.
+- **Crash right at the finish.** A tumble through the start-gate area that flies on is not detected
+  from motion or crossing similarity (tested on real footage: neither separates it from a clean
+  finish). In practice those "laps" were shortcut loops, which the length checks reject.
+- **Automatic calibration can fail** on layouts where no candidate lap starts and ends at the gate
+  while flying the full course. It then says so (no result, plus a warning) instead of returning a
+  wrong time: pin a known-correct lap with `--anchor`.
 - **No parked start.** Videos that don't start parked are still timed using the reference from the
   others; if *no* video starts parked, `--anchor` is required.
 - **OSD in mid-picture.** Lap matching masks the picture edges where OSD elements usually sit. A
@@ -564,7 +587,8 @@ Tested on Track1 / Air65_2: 11 HDZero recordings, 1280×720 at 60 fps, 36 minute
   unaffected).
 - **OSD font.** Digit templates come from Betaflight's default font. Other fonts fall back to
   motion-based arm detection, which can miss short disarms.
-- **Thresholds** (`FAST_OUTLIER`, `GATE_FIT_MIN`, clean-cost clamps) were tuned on one track.
+- **Thresholds** (`FAST_OUTLIER`, `GATE_FIT_MIN`, clean-cost clamps, `SHORT_LOOP_RATIO`,
+  `CHAIN_MIN`, `LAP_MIN_FACTOR`) were tuned on two tracks.
   They are relative to each session, but unusual footage may need adjusting.
 
 ---
@@ -575,6 +599,7 @@ Tested on Track1 / Air65_2: 11 HDZero recordings, 1280×720 at 60 fps, 36 minute
 |---|---|
 | `No parked start found` / `Could not find a repeating lap pattern` | Footage doesn't start parked at the gate, or there are too few laps. Use `--anchor VIDEO:FRAME`. |
 | `armed via motion (no OSD timer found)` in the report | No `mm:ss` timer is shown, or the OSD font differs from Betaflight's default. Laps still work; disarm detection relies on motion. |
+| `Warning: the reference lap looks wrong` | The reference skips part of the course or doesn't start/end at the gate. Find a start-gate crossing that begins a full, correct lap (check against the official demo) and re-run with `--anchor VIDEO:FRAME`. |
 | No 3-lap result | Not enough consecutive clean laps. Check the reasons in `laps.csv`, consider the tunables above. |
 | Rank 1 has a "Check before trusting" block | Open `sheets/rank1_crossings.jpg`. If a row differs, render the next consistent rank with `--rank N`. |
 | HyperFrames render fails | Re-run with `--renderer opencv` and report the HyperFrames error. |

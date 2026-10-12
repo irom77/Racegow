@@ -137,6 +137,13 @@ def gate_candidates(v, tmpl, period_frames, vids):
 
 def calibrate(vids, log=print):
     """Returns a track profile dict, or raises with a message telling the agent what to do."""
+    P, cands = reference_candidates(vids, log)
+    return finalize_reference(vids, cands[0][0], cands[0][1], P, log)
+
+
+def reference_candidates(vids, log=print):
+    """Lap period and the candidate reference laps, best first: [(ref, video)]. Raises with a message
+    telling the agent what to do."""
     for v in vids:
         v["takeoff"] = takeoff(v)
     tmpl = parked_template(vids)
@@ -174,7 +181,7 @@ def calibrate(vids, log=print):
     if not pairs:
         raise RuntimeError("No clean lap between two start-line views. Pass --anchor VIDEO:FRAME.")
     pairs.sort(key=lambda p: -p[0])
-    return pick_reference(vids, pairs[:8], P, log)
+    return P, rank_references(vids, pairs[:8], P, log)
 
 
 def same_segment(v, a, b):
@@ -204,10 +211,10 @@ def endpoint_match(v, a, b):
     return float(np.sum(wa * wb) / wa.size)
 
 
-def pick_reference(vids, pairs, P, log):
-    """Among candidate laps, keep the one that starts and ends at the same place, has a typical length
-    and explains the other videos best. The start line itself is fixed afterwards (takeoff_phase)."""
-    best = None
+def rank_references(vids, pairs, P, log):
+    """Candidate laps that start and end at the same place, best first: typical length, explaining the
+    other videos best. The start line itself is fixed afterwards (finalize_reference)."""
+    ranked = []
     for _, v, a, b in pairs:
         ref = build_reference(v, a, b)
         e = endpoint_match(v, ref["start"], ref["end"])
@@ -225,11 +232,20 @@ def pick_reference(vids, pairs, P, log):
         score = q + 0.3 * abs(dur - P) / P - 0.1 * e
         log(f"  reference candidate {ref['video']} {ref['start']}->{ref['end']} ({dur:.2f}s): "
             f"{len(costs)} laps, cost {q:.3f}, ends match {e:.2f}")
-        if best is None or score < best[0]:
-            best = (score, ref, v)
-    if best is None:
+        ranked.append((score, ref, v))
+    if not ranked:
         raise RuntimeError("Reference lap candidates did not match other laps. Pass --anchor VIDEO:FRAME.")
-    ref = shift_to_start_line(vids, best[2], best[1], P, log)
+    ranked.sort(key=lambda t: t[0])
+    # near-duplicates (the same lap found from both ends) would waste a retry
+    out = []
+    for _, ref, v in ranked:
+        if not any(r["video"] == ref["video"] and abs(r["start"] - ref["start"]) < 0.3 * P * v["fps"] for r, _ in out):
+            out.append((ref, v))
+    return out
+
+
+def finalize_reference(vids, ref, v, P, log):
+    ref = shift_to_start_line(vids, v, ref, P, log)
     ref["period_s"] = P
     ref["source"] = "auto"
     return ref

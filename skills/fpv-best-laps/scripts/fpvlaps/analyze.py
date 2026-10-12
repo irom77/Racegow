@@ -6,7 +6,8 @@ from . import osd
 from . import track as track_mod
 from .config import (OCR_STEP, DTW_CANDIDATE_COST, CLEAN_COST_MIN, CLEAN_COST_MAX, CLEAN_COST_PCTL,
                      CLEAN_COST_FACTOR, FAST_OUTLIER, GATE_FIT_MIN, LAP_MIN_FACTOR,
-                     LAP_MAX_FACTOR, STALL_MOTION, STALL_SECS, FLIGHT_MOTION, LAPS_PER_RESULT, DTW_STEP)
+                     LAP_MAX_FACTOR, STALL_MOTION, STALL_SECS, FLIGHT_MOTION, LAPS_PER_RESULT, DTW_STEP,
+                     SHORT_LOOP_RATIO, MAX_REFERENCE_TRIES, CHAIN_MIN)
 from .extract import load
 from .laps import fine_desc, dtw_desc, lap_matches, refine, stalled, window
 from .report import write_reports
@@ -163,29 +164,34 @@ def best_windows(all_laps, n=LAPS_PER_RESULT, top=5):
     return res[:top]
 
 
-def analyze(work, names, track=None, anchor=None, videos_dir=None, log=print):
-    vids = load_all(work, names, log)
-    fps = vids[0]["fps"]
-    if track:
-        ref, T, wins = load_profile(track)
-        log(f"  using track profile {track} (reference {ref['video']} {ref['start']}->{ref['end']})")
-    else:
-        if anchor:
-            name, frame = anchor.rsplit(":", 1)
-            ref = track_mod.reference_from_anchor(vids, Path(name).stem, int(frame), log)
-        else:
-            ref = track_mod.calibrate(vids, log)
-        T, wins = track_mod.reference_arrays(vids, ref)
-        rv = next(v for v in vids if v["name"] == ref["video"])
-        ref["path"], ref["pic_box"], ref["fps"] = rv["video"], rv["pic_box"], rv["fps"]
-        save_profile(work, ref, T, wins)
-    P = ref["period_s"]
+def chain_ratio(vids, laps_by_video, P):
+    """Share of back-to-back laps (same armed segment, less than half a lap apart) that share their
+    crossing. With a reference that starts and ends at the start gate, consecutive laps chain; with
+    one that doesn't, every lap ends a few seconds before the next one starts."""
+    chained = gapped = 0
+    for v in vids:
+        L = laps_by_video[v["name"]]
+        for p, q in zip(L, L[1:]):
+            if (q["start"] - p["end"]) / v["fps"] > 0.5 * P:
+                continue                                   # landed / crashed in between
+            if not any(a <= p["end"] and q["start"] <= b for a, b in v["segments"]):
+                continue
+            if q["start"] == p["end"]:
+                chained += 1
+            else:
+                gapped += 1
+    return chained / (chained + gapped) if chained + gapped else 1.0
 
+
+def detect(vids, T, wins, P):
+    """Laps of every video against reference lap T: (all laps classified, clean threshold, typical lap,
+    chain ratio)."""
     matches = {v["name"]: lap_matches(v["X"], T, DTW_CANDIDATE_COST) for v in vids}
     raw = {v["name"]: find_laps(v, matches[v["name"]], wins) for v in vids}         # pass 1: reference crossings
     cons = consensus_template(vids, raw)
     if cons is not None:                                                            # pass 2: consensus crossing
         raw = {v["name"]: find_laps(v, matches[v["name"]], [cons]) for v in vids}
+    chain = chain_ratio(vids, raw, P)
     costs = np.array([l["cost"] for L in raw.values() for l in L])
     # anchored on the well-matching laps, so lots of junk candidates can't loosen it
     base = float(np.percentile(costs, CLEAN_COST_PCTL)) if len(costs) else 0.2
@@ -200,6 +206,69 @@ def analyze(work, names, track=None, anchor=None, videos_dir=None, log=print):
             l["clean"] = False
             l["reason"] = "; ".join(r for r in (l["reason"], f"{l['time']:.2f}s is implausibly fast for this "
                                     f"track (typical {typical:.2f}s): missed gate / cut course") if r)
+    return all_laps, clean_thr, typical, chain
+
+
+def reference_problems(typical, chain, P):
+    """Why the laps suggest a wrong reference lap ([] = looks right)."""
+    out = []
+    if typical < SHORT_LOOP_RATIO * P:
+        out.append(f"the typical clean lap ({typical:.2f}s) is only {typical / P:.0%} of the track's lap "
+                   f"period ({P:.2f}s), so the reference probably skips part of the course (e.g. a dive)")
+    if chain < CHAIN_MIN:
+        out.append(f"only {chain:.0%} of back-to-back laps share their crossing, so the reference probably "
+                   f"doesn't start and end at the start gate")
+    return out
+
+
+def reference_warning(ref, problems):
+    return (f"The reference lap ({ref['video']} {ref['start']}->{ref['end']}) looks wrong: "
+            + "; ".join(problems) + ". Laps timed against it can't be trusted. Re-run with --anchor on a "
+            "start-gate crossing that begins a full, correct lap.")
+
+
+def analyze(work, names, track=None, anchor=None, videos_dir=None, log=print):
+    vids = load_all(work, names, log)
+    fps = vids[0]["fps"]
+    warnings = []
+    if track:
+        ref, T, wins = load_profile(track)
+        log(f"  using track profile {track} (reference {ref['video']} {ref['start']}->{ref['end']})")
+        # lap length checks use this session's own period: the pilot may be much faster than when the
+        # profile was made
+        P = track_mod.lap_period(vids) or ref["period_s"]
+        log(f"  lap period this session ~{P:.2f}s (profile: {ref['period_s']:.2f}s)")
+        all_laps, clean_thr, typical, chain = detect(vids, T, wins, P)
+    elif anchor:
+        name, frame = anchor.rsplit(":", 1)
+        ref = track_mod.reference_from_anchor(vids, Path(name).stem, int(frame), log)
+        T, wins = track_mod.reference_arrays(vids, ref)
+        P = ref["period_s"]
+        all_laps, clean_thr, typical, chain = detect(vids, T, wins, P)
+    else:
+        P, cands = track_mod.reference_candidates(vids, log)
+        tried = []
+        for k, (ref0, rv) in enumerate(cands[:MAX_REFERENCE_TRIES]):
+            ref = track_mod.finalize_reference(vids, ref0, rv, P, log)
+            T, wins = track_mod.reference_arrays(vids, ref)
+            out = detect(vids, T, wins, P)
+            tried.append((ref, T, wins, out))
+            log(f"  reference {ref['video']} {ref['start']}->{ref['end']}: typical clean lap {out[2]:.2f}s "
+                f"({out[2] / P:.0%} of the lap period), {out[3]:.0%} of back-to-back laps chained")
+            problems = reference_problems(out[2], out[3], P)
+            if not problems:
+                break
+            log(f"  -> rejected: {'; '.join(problems)}; trying the next candidate")
+        ref, T, wins, (all_laps, clean_thr, typical, chain) = max(
+            tried, key=lambda t: min(t[3][2] / P, 1.0) + min(t[3][3], CHAIN_MIN))
+    problems = reference_problems(typical, chain, P)
+    if problems:
+        warnings.append(reference_warning(ref, problems))
+    if not track:
+        rv = next(v for v in vids if v["name"] == ref["video"])
+        ref["path"], ref["pic_box"], ref["fps"] = rv["video"], rv["pic_box"], rv["fps"]
+        save_profile(work, ref, T, wins)
+
     windows = best_windows(all_laps)
     for w in windows:                          # flag windows that need a human/agent look before trusting
         w["warnings"] = [f"lap {i + 1} ({l['time']:.2f}s) is >10% faster than the typical {typical:.2f}s lap: "
@@ -207,7 +276,7 @@ def analyze(work, names, track=None, anchor=None, videos_dir=None, log=print):
                          for i, l in enumerate(w["laps"]) if l["time"] < 0.9 * typical]
     result = dict(videos_dir=str(Path(videos_dir).resolve()) if videos_dir else None,
                   fps=fps, laps_per_result=LAPS_PER_RESULT, lap_period_s=P, clean_cost_threshold=clean_thr,
-                  typical_lap_s=typical,
+                  typical_lap_s=typical, chain_ratio=chain, warnings=warnings,
                   reference=ref, videos=[dict(name=v["name"], path=v["video"], seconds=v["n"] / v["fps"],
                                                armed_segments=v["segments"], arm_source=v["arm_source"])
                                           for v in vids],
@@ -215,4 +284,3 @@ def analyze(work, names, track=None, anchor=None, videos_dir=None, log=print):
     (Path(work) / "result.json").write_text(json.dumps(result, indent=1))
     write_reports(work, result, log)
     return result
-

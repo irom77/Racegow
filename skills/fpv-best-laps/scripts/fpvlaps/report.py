@@ -68,6 +68,8 @@ def write_reports(work, R, log=print):
     lines = ["# FPV best 3 consecutive laps", ""]
     if R["videos_dir"]:
         lines += [f"Videos: `{R['videos_dir']}` ({len(R['videos'])} files)", ""]
+    if R.get("warnings"):
+        lines += ["> **Warning: the reference lap looks wrong.**", ">"] + [f"> {w}" for w in R["warnings"]] + [""]
     if R["best"]:
         b = R["best"][0]
         lines += [f"## Result: {b['total']:.2f}s in `{b['video']}`", "",
@@ -88,7 +90,7 @@ def write_reports(work, R, log=print):
         lines += ["## No result", "", "No video contains 3 consecutive clean laps."]
     lines += ["", "## Session summary", "",
               f"- Lap period (track): {R['lap_period_s']:.2f}s; typical clean lap {R['typical_lap_s']:.2f}s; "
-              f"clean laps: {len(clean)} of {len(R['laps'])}",
+              f"clean laps: {len(clean)} of {len(R['laps'])}; back-to-back laps chained: {R.get('chain_ratio', 1.0):.0%}",
               f"- Reference lap: `{ref['video']}` frames {ref['start']} -> {ref['end']} ({ref['source']})",
               f"- Clean-lap match threshold: {R['clean_cost_threshold']:.3f}", "",
               "| Video | Laps | Clean | Fastest clean | Armed via |", "|---|---|---|---|---|"]
@@ -101,6 +103,8 @@ def write_reports(work, R, log=print):
               "Every lap: `laps.csv`."]
     (work / "report.md").write_text("\n".join(lines) + "\n")
     log(f"  report: {work / 'report.md'}")
+    for w in R.get("warnings", []):
+        log(f"  WARNING: {w}")
     if R["best"]:
         b = R["best"][0]
         log(f"  BEST: {b['video']} {b['total']:.2f}s = " + " + ".join(f"{l['time']:.2f}" for l in b["laps"]))

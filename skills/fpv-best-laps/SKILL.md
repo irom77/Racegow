@@ -73,6 +73,17 @@ candidates in `laps.csv`, or by looking at the footage. Then re-run with a manua
 ... fpvlaps.py analyze --videos "<folder>" --work "<work>" --anchor hdz_0024:1596
 ```
 
+If `report.md` starts with **"Warning: the reference lap looks wrong"**, the laps it found don't fit
+the track: they're much shorter than the track's lap period (the reference skips part of the
+course, e.g. a dive, so laps that skip it pass as clean), or consecutive laps don't share their
+crossings (the reference doesn't start and end at the start gate). Don't render. Find a start-gate crossing that begins a full, correct
+lap (ask the user for one if needed) and re-run with `--anchor`.
+
+**If the track has an official layout** (e.g. the organiser's demo flythrough video, often linked in
+a README in the track folder), it is the real reference: the tool only compares laps with each
+other and can't tell a consistently wrong line from the right one. Before rendering, check the
+winning laps against it, gate by gate.
+
 Also read `report.md`. If it has a **"Check before trusting"** block, one of the winning laps is
 much faster than the track's typical lap, which usually means a missed or re-flown gate. Look at
 `sheets/rank1_crossings.jpg`. If a row shows a different spot from the others, fall back to the
