@@ -41,6 +41,12 @@ def find_sheet_id(page_html):
     return ids[0]
 
 
+def sheet_title(page_html):
+    """The iframe's label, e.g. "RaceGOW6 Leaderboards sponsored by HQProp" (None if absent)."""
+    m = re.search(r'aria-label="Spreadsheet, ([^"]+)"', page_html)
+    return m.group(1).strip() if m else None
+
+
 def list_tabs(sheet_id):
     """[(name, gid)] in sheet order, read from the htmlembed page's tab list."""
     html = get(SHEET.format(id=sheet_id) + "/htmlembed")
@@ -127,7 +133,8 @@ def main():
     a = ap.parse_args()
 
     try:
-        sheet_id = a.sheet or find_sheet_id(get(PAGE))
+        page = None if a.sheet else get(PAGE)
+        sheet_id = a.sheet or find_sheet_id(page)
         tabs = list_tabs(sheet_id)
         track_tabs = [(n, g) for n, g in tabs if re.fullmatch(r"track\s*\d+", n.strip(), re.I)]
         if a.track:
@@ -149,6 +156,7 @@ def main():
         "pilot": a.pilot, "reg": a.reg or None,
         "fetched_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "source": PAGE, "sheet": SHEET.format(id=sheet_id),
+        "title": sheet_title(page) if page else None,
         "tabs": [n for n, _ in tabs],
         "tracks": tracks,
     }

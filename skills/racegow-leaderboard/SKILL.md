@@ -42,6 +42,7 @@ Output (stdout and `--out`), top-level fields for the latest track the pilot app
 {"pilot": "papfpv", "reg": "300", "track": "Track1", "rank": 223, "of": 343, "time": 30.77,
  "half": "bottom", "top_percent": 65.0,
  "fetched_at": "2026-10-13T13:16:08+00:00", "source": "https://www.racegow.com/leaderboards",
+ "title": "RaceGOW6 Leaderboards sponsored by HQProp",
  "tracks": {"Track1": {"found": true, "rank": 223, "of": 343, "rank_by_entry": 226,
             "entries": 353, "video": "...", "sheet_row": 237, "hidden_fast_times": true}}}
 ```

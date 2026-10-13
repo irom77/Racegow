@@ -99,6 +99,21 @@ python3 skills/racegow-leaderboard/scripts/leaderboard.py --pilot papfpv --reg 3
 
 Or ask your agent: *"What's my current RaceGOW position?"*
 
+### Upload the clip to YouTube
+
+[`skills/racegow-youtube`](skills/racegow-youtube/SKILL.md) uploads a verified clip to your channel.
+It builds the title and description from the run: time and splits, leaderboard rank, quad, date,
+sponsor, deadline and the demo flythrough link. Then it records the video URL in `result.json` and
+the track README. It always shows the text, the channel and the privacy setting for your OK first.
+It needs a Google Cloud OAuth desktop client with YouTube Data API v3 enabled; see the SKILL.md.
+
+```bash
+python3 skills/racegow-youtube/scripts/yt_upload.py meta --work fpvlaps-work/Track2-1st   # title + description
+```
+
+Or ask your agent: *"Upload my best Track 2 clip to YouTube."* The description gives your
+leaderboard rank (e.g. 223rd of 343); the top/bottom half is only in the leaderboard report.
+
 ---
 
 ## How it works
