@@ -86,6 +86,19 @@ The agent runs the analysis, checks the verification images, corrects the gate i
 and reports the lap table. Other agents (Cursor, Gemini CLI, Aider...) can be pointed at
 `skills/fpv-best-laps/SKILL.md` from their rules file.
 
+### RaceGOW leaderboard position
+
+A second, small skill, [`skills/racegow-leaderboard`](skills/racegow-leaderboard/SKILL.md), looks up
+a pilot's current place on the [RaceGOW leaderboards](https://www.racegow.com/leaderboards) by
+Unofficial Time, per track, including whether it's in the top or bottom half of all pilots. It
+needs only Python's standard library:
+
+```bash
+python3 skills/racegow-leaderboard/scripts/leaderboard.py --pilot papfpv --reg 300 --out leaderboard.json
+```
+
+Or ask your agent: *"What's my current RaceGOW position?"*
+
 ---
 
 ## How it works

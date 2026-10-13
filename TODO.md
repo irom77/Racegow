@@ -153,8 +153,8 @@ https://youtu.be/zNN1ugb4v4I (RaceGOW6 Track 1). The prototype, `yt_upload.py` (
   format `RaceGOW6 Track 2 | 41.43s best 3 consecutive laps | PAPFPV`. Take the RaceGOW/track
   numbers from the track folder (README or `result.json`), the time from `result.json`.
 - [ ] Description, in this order (the approved first upload is the template): the result and lap
-  splits; pilot `PAPFPV` and current RaceGOW rank (from the leaderboard skill below; 300 on
-  2026-10-12); quad and video system (craft name from the OSD, e.g. Air65 · HDZero) and the date
+  splits; pilot `PAPFPV` and current RaceGOW rank (from the leaderboard skill below, e.g. 223rd of
+  343 on Track 1 on 2026-10-13; 300 is the pilot's Reg#, not the rank); quad and video system (craft name from the OSD, e.g. Air65 · HDZero) and the date
   flown; "About the race": track sponsor/designer and deadline (from the organiser's demo video
   description; racegow.com/home doesn't list per-track details), the demo flythrough link with its
   start time, racegow.com home, leaderboards and Discord links; a credit line linking
@@ -176,12 +176,20 @@ https://youtu.be/zNN1ugb4v4I (RaceGOW6 Track 1). The prototype, `yt_upload.py` (
   by hand for the first upload).
 - [ ] Before uploading, check the channel name the token points to and confirm it with the pilot.
 
-### Skill: find the pilot's current RaceGOW leaderboard position
+### Skill: find the pilot's current RaceGOW leaderboard position (done)
 
-- [ ] Read https://www.racegow.com/leaderboards and find `PAPFPV` (match case-insensitively, allow
-  for variants of the nickname). Report the overall rank, and per-track rank and time if listed.
-- [ ] The page may be rendered with JavaScript: try a plain fetch first, fall back to a headless
-  browser (Playwright) if the table isn't in the HTML.
-- [ ] Output a small JSON (`rank`, `of`, `points`/`time`, `fetched_at`, source URL) that the upload
-  skill reads for the video description.
-- [ ] Say clearly when the pilot isn't found or the page layout changed, instead of guessing.
+`skills/racegow-leaderboard/` (`scripts/leaderboard.py`, standard library only).
+
+- [x] Source: the leaderboards page embeds a public Google Sheet (one tab per track, `Track1`, ...),
+  read as CSV, so no headless browser is needed. The sheet id is found from the page each run.
+- [x] Match by Reg# (300) or nickname (`papfpv`, ignoring case and punctuation). The sheet's Rank
+  column is `TBD` until the livestream, so the rank is computed from `Unofficial Time`, per pilot
+  (best time per nickname) and per entry. First run, 2026-10-13: Track 1, 30.770 s,
+  **223rd of 343 pilots**, bottom half (226th of 353 entries). Times under 16 s are hidden until the deadline.
+- [x] JSON output (`rank`, `of`, `time`, `track`, `fetched_at`, source, per-track details) via `--out`.
+- [x] Clear exit codes: 2 pilot not found, 3 page/sheet layout changed.
+- [x] Top/bottom half of all pilots (`half`, `top_percent`).
+- [x] Tested through the agent skill (2026-10-13 13:18 UTC): Track 1, 223rd of 343, bottom half
+  (top 65 %). Only the Track1 tab has times so far; the others say "Coming Soon".
+- [ ] Re-test when the Track 2 tab gets times (the latest track should become the top-level result).
+- [ ] Wire the JSON into the YouTube upload skill's description.
