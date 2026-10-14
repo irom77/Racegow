@@ -156,7 +156,22 @@ CLI=fpv-best-laps/scripts/fpvlaps.py
 $PY $CLI run     --videos /path/to/videos                 # everything, no verification stop
 $PY $CLI analyze --videos /path/to/videos --work ./w      # extract + analyze only
 $PY $CLI render  --work ./w --rank 1                      # export a verified rank
+$PY $CLI save-track --work ./w                            # keep a verified profile next to the track README
 ```
+
+**Track folder layout.** Keep one folder per track with a `README.md` and one subfolder per session:
+
+```
+Track2/
+  README.md          **Demo video:**, **Flythrough starts at:**, **Correct lap:** lines
+  track.json/.npz    verified profile (written by save-track)
+  1st/  2nd/ ...     DVR files
+```
+
+`analyze --videos Track2/2nd` then needs no other flags. The reference lap is taken, in order, from
+`--track` / `--anchor`, `track.json` next to the README, the README's correct lap (a video in any batch
+folder, e.g. `1st/hdz_0022 at 0:59`), or automatic calibration. `report.md` links the demo flythrough
+to check the winning laps against. Template: [`assets/track-README-template.md`](assets/track-README-template.md).
 
 | Command | Does |
 |---|---|
@@ -165,6 +180,7 @@ $PY $CLI render  --work ./w --rank 1                      # export a verified ra
 | `analyze` | `extract` + track calibration + lap detection + ranking + reports. |
 | `render` | Cuts and overlays one ranked result. |
 | `run` | `analyze` + `render` in one go. |
+| `save-track` | Copies a verified run's `track.json` + `track.npz` next to the track README (`--to DIR` otherwise). Won't replace an existing profile without `--force` (old one kept as `.bak`). |
 
 | Option | Default | Meaning |
 |---|---|---|
@@ -172,6 +188,8 @@ $PY $CLI render  --work ./w --rank 1                      # export a verified ra
 | `--work DIR` | `./fpvlaps-work/<folder name>` | Cache and output folder. |
 | `--track PROFILE.json` | – | Reuse a saved track profile instead of calibrating. |
 | `--anchor VIDEO:FRAME` | – | Manual start-gate crossing, e.g. `hdz_0024:1596`. Overrides auto calibration. |
+| `--readme FILE` | `README.md` in `--videos` or its parent | Track README with the demo link and the reference lap. |
+| `--no-readme` | – | Ignore the track README (reference from `--track`/`--anchor` or auto calibration only). |
 | `--workers N` | cores / 3 | Videos decoded in parallel during extraction. |
 | `--rank N` | 1 | Which ranked result to render. |
 | `--renderer` | `auto` | `auto`, `hyperframes` or `opencv`. |
@@ -294,6 +312,7 @@ flowchart TB
 | `extract.py` | One decode per video; writes `<video>.thumbs.npy`, `<video>.feat.npz`, `<video>.json`. |
 | `laps.py` | Picture descriptors, subsequence DTW, 60 fps crossing refinement, stall detection. |
 | `track.py` | Learns the layout: parked view, launch, lap period, reference lap, start-line shift. |
+| `trackdir.py` | Track folder README: finds and parses it, picks the reference (CLI, `track.json`, correct lap, auto), `save-track`. |
 | `analyze.py` | Runs calibration and detection, applies the clean rules, builds and ranks 3-lap windows, writes `result.json`. |
 | `report.py` | Human-readable report, CSV, verification contact sheets. |
 | `render.py` | Plans the clip, cuts it, draws the overlay with HyperFrames or OpenCV. |
@@ -638,9 +657,12 @@ fpv-best-laps/
 │   └── fpvlaps/                 # pipeline package (see Module map)
 ├── assets/
 │   ├── osd_digits.npz           # OSD digit templates
+│   ├── track-README-template.md # track folder README the CLI reads
 │   └── overlay/
 │       ├── index.html           # HyperFrames overlay composition (templated)
 │       └── fonts/               # Inter 500/800 + OFL licence
+├── tests/
+│   └── test_trackdir.py         # python -m unittest discover -s tests
 └── evals/
     └── evals.json               # test prompts for skill evaluation
 ```

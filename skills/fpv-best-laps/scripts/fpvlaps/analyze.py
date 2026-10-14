@@ -227,8 +227,43 @@ def reference_warning(ref, problems):
             "start-gate crossing that begins a full, correct lap.")
 
 
-def analyze(work, names, track=None, anchor=None, videos_dir=None, log=print):
+def correct_lap_anchor(work, vids, lap, videos_dir, log):
+    """The README's correct lap as an anchor: (videos to build the reference from, video name, frame).
+    A video from another batch folder is extracted on its own into <work>/reference/<folder>/ and named
+    by its README path (e.g. 1st/hdz_0022), so it can't clash with a same-named video in this batch."""
+    path = Path(lap["path"])
+    if videos_dir and path.parent == Path(videos_dir).resolve():
+        v, pool = next(u for u in vids if u["name"] == path.stem), vids
+    else:
+        from .extract import extract_all
+        sub = "_".join(p for p in Path(lap["video"]).parent.parts if p not in ("..", ".", "/")) or "_"
+        rw = Path(work) / "reference" / sub
+        log(f"  correct lap is in another folder: extracting {path}")
+        extract_all([path], rw, 1)
+        v = load_all(rw, [path.stem], log)[0]
+        v["name"] = Path(lap["video"]).with_suffix("").as_posix()
+        pool = vids + [v]
+    # used as given: the pilot picked this crossing, and any consistent timing line times laps equally well
+    frame = int(lap["frame"]) if "frame" in lap else int(round(lap["time"] * v["fps"]))
+    log(f"  correct lap: {v['name']} frame {frame}")
+    return pool, v["name"], frame
+
+
+def track_readme_info(readme):
+    if not readme:
+        return None
+    from .trackdir import demo_link
+    info = readme.get("info") or {}
+    return dict(path=str(readme["readme"]) if readme.get("readme") else None, demo=info.get("demo"),
+                demo_title=info.get("demo_title"), flythrough=info.get("flythrough"),
+                demo_link=demo_link(info), reference=readme.get("how"))
+
+
+def analyze(work, names, track=None, anchor=None, videos_dir=None, correct_lap=None, readme=None, log=print):
+    """`readme`: what trackdir.choose_reference found (README path, demo, how the reference was chosen),
+    recorded in result.json and report.md."""
     vids = load_all(work, names, log)
+    pool = vids                                # videos the reference lap may come from
     fps = vids[0]["fps"]
     warnings = []
     if track:
@@ -239,10 +274,16 @@ def analyze(work, names, track=None, anchor=None, videos_dir=None, log=print):
         P = track_mod.lap_period(vids) or ref["period_s"]
         log(f"  lap period this session ~{P:.2f}s (profile: {ref['period_s']:.2f}s)")
         all_laps, clean_thr, typical, chain = detect(vids, T, wins, P)
-    elif anchor:
-        name, frame = anchor.rsplit(":", 1)
-        ref = track_mod.reference_from_anchor(vids, Path(name).stem, int(frame), log)
-        T, wins = track_mod.reference_arrays(vids, ref)
+    elif anchor or correct_lap:
+        if anchor:
+            name, frame = anchor.rsplit(":", 1)
+            name, frame = Path(name).stem, int(frame)
+        else:
+            pool, name, frame = correct_lap_anchor(work, vids, correct_lap, videos_dir, log)
+        ref = track_mod.reference_from_anchor(pool, name, frame, log)
+        if not anchor:
+            ref["source"] = "readme"
+        T, wins = track_mod.reference_arrays(pool, ref)
         P = ref["period_s"]
         all_laps, clean_thr, typical, chain = detect(vids, T, wins, P)
     else:
@@ -265,7 +306,7 @@ def analyze(work, names, track=None, anchor=None, videos_dir=None, log=print):
     if problems:
         warnings.append(reference_warning(ref, problems))
     if not track:
-        rv = next(v for v in vids if v["name"] == ref["video"])
+        rv = next(v for v in pool if v["name"] == ref["video"])
         ref["path"], ref["pic_box"], ref["fps"] = rv["video"], rv["pic_box"], rv["fps"]
         save_profile(work, ref, T, wins)
 
@@ -277,6 +318,8 @@ def analyze(work, names, track=None, anchor=None, videos_dir=None, log=print):
     result = dict(videos_dir=str(Path(videos_dir).resolve()) if videos_dir else None,
                   fps=fps, laps_per_result=LAPS_PER_RESULT, lap_period_s=P, clean_cost_threshold=clean_thr,
                   typical_lap_s=typical, chain_ratio=chain, warnings=warnings,
+                  track_profile=str(Path(track).resolve()) if track else None,
+                  track_readme=track_readme_info(readme),
                   reference=ref, videos=[dict(name=v["name"], path=v["video"], seconds=v["n"] / v["fps"],
                                                armed_segments=v["segments"], arm_source=v["arm_source"])
                                           for v in vids],

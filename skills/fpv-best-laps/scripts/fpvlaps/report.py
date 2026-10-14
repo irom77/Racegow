@@ -68,6 +68,19 @@ def write_reports(work, R, log=print):
     lines = ["# FPV best 3 consecutive laps", ""]
     if R["videos_dir"]:
         lines += [f"Videos: `{R['videos_dir']}` ({len(R['videos'])} files)", ""]
+    tr = R.get("track_readme") or {}
+    if tr.get("path") or tr.get("reference"):
+        lines += ["## Reference to check against", ""]
+        if tr.get("path"):
+            lines.append(f"- Track README: `{tr['path']}`")
+        if tr.get("demo"):
+            lines.append(f"- Demo flythrough: {tr.get('demo_link') or tr['demo']}"
+                         + (f" (starts at {tr['flythrough']})" if tr.get("flythrough") else "")
+                         + ". Fly the winning laps against it gate by gate: the tool only compares laps"
+                           " with each other.")
+        if tr.get("reference"):
+            lines.append(f"- Reference lap chosen from: {tr['reference']}")
+        lines.append("")
     if R.get("warnings"):
         lines += ["> **Warning: the reference lap looks wrong.**", ">"] + [f"> {w}" for w in R["warnings"]] + [""]
     if R["best"]:

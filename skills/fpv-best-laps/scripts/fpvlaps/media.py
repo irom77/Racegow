@@ -9,7 +9,9 @@ from .config import VIDEO_EXTS
 
 def list_videos(folder):
     folder = Path(folder)
-    vids = sorted(p for p in folder.iterdir() if p.suffix.lower() in VIDEO_EXTS and not p.name.startswith("."))
+    # best3_laps_* are this tool's own exported clips, often kept next to the footage
+    vids = sorted(p for p in folder.iterdir() if p.suffix.lower() in VIDEO_EXTS
+                  and not p.name.startswith((".", "best3_laps_")))
     if not vids:
         raise SystemExit(f"No videos ({', '.join(VIDEO_EXTS)}) found in {folder}")
     return vids

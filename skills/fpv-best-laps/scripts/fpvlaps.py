@@ -4,14 +4,22 @@ the clip with a left-aligned lap-time overlay.
 
   python fpvlaps.py doctor
   python fpvlaps.py run      --videos DIR [--work DIR] [--track PROFILE.json] [--anchor VIDEO:FRAME]
+                             [--readme FILE | --no-readme]
   python fpvlaps.py extract  --videos DIR [--work DIR]
   python fpvlaps.py analyze  --videos DIR [--work DIR] [--track PROFILE.json] [--anchor VIDEO:FRAME]
+                             [--readme FILE | --no-readme]
+  python fpvlaps.py save-track --work DIR [--to TRACK_DIR] [--force]
   python fpvlaps.py render   --work DIR [--rank 1] [--renderer auto|hyperframes|opencv]
                              [--background blur|black] [--blur-strength 40]
                              [--music FILE|auto] [--music-volume -10]
 
 `run` = extract + analyze + render. Everything is cached under the work directory, so re-running
-`analyze` after a `--anchor` correction takes seconds."""
+`analyze` after a `--anchor` correction takes seconds.
+
+Track folder README: when --videos is a batch folder (e.g. Track2/2nd), README.md in that folder or
+its parent is read. The reference lap is, in order: --track / --anchor, track.json next to the README,
+the README's **Correct lap:** line, automatic calibration. After verifying a run, `save-track` copies
+its profile next to the README for later batches. See fpvlaps/trackdir.py for the README format."""
 import argparse
 import sys
 from pathlib import Path
@@ -25,11 +33,15 @@ def default_work(videos):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("command", choices=["doctor", "run", "extract", "analyze", "render"])
+    ap.add_argument("command", choices=["doctor", "run", "extract", "analyze", "render", "save-track"])
     ap.add_argument("--videos", help="folder of FPV recordings (one session per file)")
     ap.add_argument("--work", help="cache/output folder (default ./fpvlaps-work/<videos folder name>)")
     ap.add_argument("--track", help="track profile JSON to reuse (skips gate calibration)")
     ap.add_argument("--anchor", help="manual start-gate crossing VIDEO:FRAME (overrides auto calibration)")
+    ap.add_argument("--readme", help="track README to use (default: README.md in --videos or its parent)")
+    ap.add_argument("--no-readme", action="store_true", help="ignore the track README")
+    ap.add_argument("--to", help="save-track: folder to save track.json/.npz in (default: the track README's folder)")
+    ap.add_argument("--force", action="store_true", help="save-track: replace an existing track.json (kept as .bak)")
     ap.add_argument("--workers", type=int, help="parallel videos during extraction")
     ap.add_argument("--rank", type=int, default=1, help="which result to render (1 = fastest)")
     ap.add_argument("--renderer", default="auto", choices=["auto", "hyperframes", "opencv"])
@@ -48,6 +60,13 @@ def main():
         from fpvlaps.doctor import doctor
         sys.exit(doctor())
 
+    if a.command == "save-track":
+        from fpvlaps.trackdir import save_track
+        if not a.work:
+            ap.error("--work is required")
+        save_track(a.work, a.to, a.force)
+        return
+
     if a.command in ("run", "extract", "analyze") and not a.videos:
         ap.error("--videos is required")
     work = Path(a.work) if a.work else default_work(a.videos or ".")
@@ -61,8 +80,14 @@ def main():
         extract_all(videos, work, a.workers)
     if a.command in ("run", "analyze"):
         from fpvlaps.analyze import analyze
+        from fpvlaps.trackdir import choose_reference
         print("[2/3] calibrating track + detecting laps")
-        analyze(work, [v.stem for v in videos], track=a.track, anchor=a.anchor, videos_dir=a.videos)
+        ch = choose_reference(a.videos, a.track, a.anchor, a.readme, not a.no_readme)
+        if ch["readme"]:
+            print(f"  track README: {ch['readme']}")
+        print(f"  reference: {ch['how']}")
+        analyze(work, [v.stem for v in videos], track=ch["track"], anchor=ch["anchor"], videos_dir=a.videos,
+                correct_lap=ch["correct_lap"], readme=ch)
     if a.command in ("run", "render"):
         from fpvlaps.render import render
         print("[3/3] rendering")

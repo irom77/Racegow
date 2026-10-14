@@ -112,27 +112,31 @@ sounds different and calls what actually happened. Can be used alone or on top o
   `<work>/export/commentary.txt` so it can be reviewed or edited and re-rendered.
 - [ ] Docs: SKILL.md render step and README options table.
 
-## Feature: read the track folder README automatically
+## Feature: read the track folder README automatically (done)
 
 Each track folder (e.g. `RaceeGow6/Track2/`) has a `README.md` with the organiser's demo video, the
 time its flythrough starts, and one lap the pilot knows is correct. Batches live in subfolders
-(`Track2/1st`, `Track2/2nd`, ...). Let the tool pick all of that up, so timing a new batch is just
-`fpvlaps.py run --videos Track2/2nd` with no flags.
+(`Track2/1st`, `Track2/2nd`, ...). The tool picks all of that up, so timing a new batch is just
+`fpvlaps.py run --videos Track2/2nd` with no flags. Code: `scripts/fpvlaps/trackdir.py`.
 
-- [ ] Define a small, documented README format, e.g. lines `Demo: <url>`, `Flythrough: 1:00`,
-  `Correct lap: 1st/hdz_0022 at 0:59` (video path relative to the track folder, time in the video).
-- [ ] When `--videos` is a batch folder, look for `README.md` in the folder and its parent. Use, in
-  order: `--track`/`--anchor` from the command line, then `track.json` next to the README, then
-  the README's `Correct lap` (converted to an anchor frame, snapped to the nearest start-gate
-  crossing), then automatic calibration.
-- [ ] Allow the correct lap to be in a different batch folder than the one being timed (extract
-  features for that one video only).
-- [ ] After a run that the user or agent has verified, offer to save `track.json`/`track.npz` next to
-  the README (a `--save-track` flag), so later batches reuse it.
-- [ ] Put the demo link and flythrough time in `report.md`, next to the verification sheets, as the
-  reference to check the winning laps against.
-- [ ] Docs: SKILL.md workflow (read the README first, check laps against the demo), README usage
-  example with a track-folder layout, and a template track README.
+- [x] README format: the bold labels the YouTube skill already reads, `**Demo video:** <url> ("title")`
+  and `**Flythrough starts at:** 1:00`, plus `**Correct lap:** 1st/hdz_0022 at 0:59` (or
+  `frame 3539`; video path relative to the track folder). Template:
+  `assets/track-README-template.md`.
+- [x] `README.md` is looked up in `--videos` and its parent. Reference, in order: `--track`/`--anchor`,
+  `track.json` next to the README, the README's correct lap, automatic calibration.
+  `--readme FILE` / `--no-readme` override. The correct lap's time is used as given (nearest frame),
+  not snapped: tried snapping to the parked start view, but it moved an exact crossing 0.38 s early and
+  shifted every crossing with it, and a consistent line times laps equally well wherever it is.
+- [x] The correct lap may be in another batch folder: that one video is extracted on its own into
+  `<work>/reference/<folder>/` and named by its README path (`1st/hdz_0022`).
+- [x] `save-track --work W [--to DIR] [--force]` copies a verified run's profile next to the README.
+  It won't replace an existing `track.json` without `--force` (old one kept as `.bak`), and refuses
+  runs that only reused a profile.
+- [x] `report.md` has a "Reference to check against" block: README path, demo link opening at the
+  flythrough, and where the reference lap came from.
+- [x] Docs: SKILL.md, skill README (track folder layout, options), template track README.
+- [x] Also: `list_videos` skips the tool's own `best3_laps_*` clips kept next to the footage.
 
 ## New skills: YouTube upload and RaceGOW leaderboard
 

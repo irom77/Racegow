@@ -44,6 +44,13 @@ used when you report.
 ```
 
 - Paths with Windows drive letters work as-is on Windows. Under WSL use `/mnt/c/...`.
+- **Track folder README.** When `<folder>` is a batch inside a track folder (`Track2/2nd`), the tool
+  reads `README.md` from the folder or its parent and logs `reference: ...`. It picks the reference
+  lap in this order: `--track` / `--anchor`, `track.json` next to the README, the README's
+  `**Correct lap:**` line, automatic calibration. The README's demo link and flythrough start go into
+  `report.md` ("Reference to check against"). Read that README yourself too: it often has notes
+  such as skipped-dive shortcuts. `--no-readme` ignores it, `--readme FILE` picks another one. Format:
+  `assets/track-README-template.md`.
 - Feature extraction decodes every frame once, in parallel across videos (measured: 36 min of 720p60
   HEVC in about 15 min on a 22-core machine, reading from a Windows drive under WSL). Results are cached in
   `<work>/features/`. A re-run (e.g. with `--anchor`) skips extraction but still spends 1-3 min on
@@ -122,7 +129,16 @@ times are accurate to about ±2-3 frames (±0.05 s at 60 fps).
 
 ## Same track again
 
-Calibration is saved to `<work>/track.json` + `track.npz`. For more sessions on the same layout, pass
+Calibration is saved to `<work>/track.json` + `track.npz`. Once the run is verified (sheets checked
+against the demo, ideally confirmed by the pilot), save it next to the track README so later batches
+pick it up with no flags:
+
+```bash
+.fpvlaps-venv/bin/python <skill-dir>/scripts/fpvlaps.py save-track --work "<work dir>"   # --to DIR without a README
+```
+
+It refuses to replace an existing `track.json` (other batches may rely on it); `--force` replaces it and
+keeps the old one as `.bak`. Ask the pilot before using `--force`. Without a track README, pass
 `--track <old work>/track.json` to skip calibration and time laps against the same reference. This is
 also more reliable when the new folder holds only 2-3 videos, since a profile built from a bigger
 session is steadier. A new layout needs a fresh calibration: just run without `--track`.
