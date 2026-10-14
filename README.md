@@ -68,8 +68,23 @@ gate crossings should show the same spot), then `render --rank 1`.
 can't tell a consistently wrong line (say, a skipped dive) from the right one. Check the winning
 laps against the organiser's demo flythrough. If `report.md` warns that the reference lap looks
 wrong, re-run with `--anchor VIDEO:FRAME` on a start-gate crossing that begins a lap you know you
-flew correctly. Once a batch checks out, reuse its profile for later sessions on the same layout with
-`--track <work>/track.json`.
+flew correctly.
+
+**Keep one folder per track.** Put a `README.md` in the track folder and one subfolder per session:
+
+```
+Track2/
+  README.md      **Demo video:** <url>   **Flythrough starts at:** 1:00   **Correct lap:** 1st/hdz_0022 at 0:58.98
+  track.json     verified profile, written by `save-track`
+  1st/  2nd/     DVR files
+```
+
+`analyze --videos Track2/2nd` then needs no other flags. It times laps against `track.json` if there
+is one, otherwise against the README's correct lap (which can be in another session folder), and
+`report.md` links the demo flythrough to check against. Once a batch checks out, `save-track --work
+<work>` keeps its profile next to the README for later sessions. It never replaces an existing profile
+without `--force`. Template: [`track-README-template.md`](skills/fpv-best-laps/assets/track-README-template.md).
+Without a track README, reuse a profile with `--track <work>/track.json`.
 
 ### Use it from an AI coding agent
 
@@ -156,10 +171,11 @@ Racegow/
 ├── skills/fpv-best-laps/      ← the product: agent skill + CLI (start here)
 │   ├── SKILL.md               agent instructions
 │   ├── README.md              full architecture and usage
-│   ├── scripts/fpvlaps.py     CLI: doctor · run · extract · analyze · render
+│   ├── scripts/fpvlaps.py     CLI: doctor · run · extract · analyze · render · save-track
 │   ├── scripts/fpvlaps/       pipeline package
 │   ├── references/method.md   detailed method and tunables
-│   └── assets/                OSD digit templates, HyperFrames overlay, fonts
+│   ├── tests/                 unit tests (python -m unittest discover -s skills/fpv-best-laps/tests)
+│   └── assets/                OSD digit templates, track README template, HyperFrames overlay, fonts
 ├── src/                       original single-track prototype (hard-coded paths, superseded by the skill)
 ├── export/                    HyperFrames project used for the first hand-verified export
 │   ├── index.html             overlay composition
