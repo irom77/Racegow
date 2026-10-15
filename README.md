@@ -176,7 +176,7 @@ Racegow/
 │   ├── references/method.md   detailed method and tunables
 │   ├── tests/                 unit tests (python -m unittest discover -s skills/fpv-best-laps/tests)
 │   └── assets/                OSD digit templates, track README template, HyperFrames overlay, fonts
-├── src/                       original single-track prototype (hard-coded paths, superseded by the skill)
+├── legacy/                    original single-track prototype, not maintained (hard-coded paths; see legacy/README.md)
 ├── export/                    HyperFrames project used for the first hand-verified export
 │   ├── index.html             overlay composition
 │   └── snapshots/             preview frames
