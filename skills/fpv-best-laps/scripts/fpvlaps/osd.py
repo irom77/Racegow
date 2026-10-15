@@ -10,7 +10,10 @@ from .config import ASSETS, OSD_WHITE
 # geometry at the template scale (colon dot spacing = 18.1 px on 720p HDZero recordings)
 REF_DOT_DY = 18.1
 CELL_H, CELL_W = 30, 18
-DIGIT_DX = (-70.5, -38.5, 25.5, 57.5)  # cell left edges relative to the colon centre (mm:ss)
+DIGIT_DX = (-70.5, -38.5, 25.5, 57.5)  # cell left edges relative to the colon centre (mm:ss): a 32 px
+                                       # character pitch, centred 2.5 px right of the colon
+WIDE_PITCHES = tuple(range(34, 45))    # other character pitches some OSDs use with the same glyphs
+                                       # (seen: 40 px on other pilots' HDZero uploads)
 
 _T = np.load(ASSETS / "osd_digits.npz")
 _CENTERS, _LABELS = _T["centers"], _T["labels"]
@@ -37,12 +40,19 @@ def find_colons(persist, region_xy):
 PAD = 2                               # margin around each cell so OCR can absorb +-2 px misalignment
 
 
+def digit_dx(colon):
+    """Cell left edges for a timer: (cx, cy, dy) uses the default layout, (cx, cy, dy, pitch) a wider one."""
+    if len(colon) < 4:
+        return DIGIT_DX
+    return tuple(2.5 + colon[3] * m - CELL_W / 2 for m in (-2, -1, 1, 2))
+
+
 def cell_boxes(colon):
     """(x, y, w, h) of the 4 digit cells including the PAD margin, in full-frame pixels."""
-    cx, cy, dy = colon
+    cx, cy, dy = colon[:3]
     s = dy / REF_DOT_DY
     h, w = (CELL_H + 2 * PAD) * s, (CELL_W + 2 * PAD) * s
-    return [(int(round(cx + (dx - PAD) * s)), int(round(cy - h / 2)), int(round(w)), int(round(h))) for dx in DIGIT_DX]
+    return [(int(round(cx + (dx - PAD) * s)), int(round(cy - h / 2)), int(round(w)), int(round(h))) for dx in digit_dx(colon)]
 
 
 def grab_cells(gray, colon):
@@ -88,15 +98,34 @@ def to_seconds(digits):
 def locate_timers(gray_samples, max_timers=3, min_rate=0.3, min_distinct=3):
     """Find the mm:ss timers anywhere in the frame. A candidate must read as a valid mm:ss in at least
     `min_rate` of the samples and show at least `min_distinct` different values (a running timer,
-    not static text such as a voltage). Returns up to `max_timers` colons sorted top->bottom, left->right."""
+    not static text such as a voltage). Returns up to `max_timers` colons sorted top->bottom, left->right.
+
+    Only when the default layout finds no timer at all are wider character pitches tried
+    (WIDE_PITCHES; such timers come back as (cx, cy, dy, pitch)). Those must also run like a clock
+    over the samples, which are in video order: e.g. a link-quality "28:100" reads as mm:ss too."""
     persist = np.mean([g > OSD_WHITE for g in gray_samples], 0)
-    scored = []
-    for col in find_colons(persist, (0, 0)):
+    cols = find_colons(persist, (0, 0))
+
+    def score(col):
         secs = to_seconds(classify(np.stack([grab_cells(g, col) for g in gray_samples])))
         ok = ~np.isnan(secs)
         rate = float(np.mean(ok))
-        if rate >= min_rate and len(np.unique(secs[ok])) >= min_distinct:
+        return rate, secs, rate >= min_rate and len(np.unique(secs[ok])) >= min_distinct
+
+    scored = []
+    for col in cols:
+        rate, _, good = score(col)
+        if good:
             scored.append((rate, col))
+    if not scored:
+        for col in cols:
+            best = None
+            for q in WIDE_PITCHES:
+                rate, secs, good = score((*col, float(q)))
+                if good and runs_forward(secs) and (best is None or rate > best[0]):
+                    best = (rate, (*col, float(q)))
+            if best:
+                scored.append(best)
     # de-duplicate (same colon found twice) and keep the most readable
     scored.sort(key=lambda t: -t[0])
     keep = []
@@ -106,6 +135,22 @@ def locate_timers(gray_samples, max_timers=3, min_rate=0.3, min_distinct=3):
         if len(keep) == max_timers:
             break
     return sorted(keep, key=lambda c: (c[1], c[0]))
+
+
+def runs_forward(secs, min_rank_corr=0.7):
+    """Readings (in video order) trend upward like a timer: Spearman rank correlation with the sample
+    order. Isolated OCR misreads barely move it; a link-quality or other fluctuating value has none."""
+    k = np.where(~np.isnan(secs))[0]
+    if len(k) < 5:
+        return False
+    v = secs[k]
+    if len(np.unique(v)) < 3:
+        return False
+    rv = np.argsort(np.argsort(v, kind="stable"), kind="stable").astype(float)
+    rk = np.arange(len(k), dtype=float)
+    if rv.std() == 0:
+        return False
+    return bool(np.corrcoef(rv, rk)[0, 1] >= min_rank_corr)
 
 
 def arm_segments(secs, fps, step):
