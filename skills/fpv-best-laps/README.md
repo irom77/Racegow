@@ -21,7 +21,7 @@ from the footage each time, so the same skill works on any RaceGOW (or other who
 1. [What you get](#what-you-get)
 2. [Race rules](#race-rules)
 3. [Install](#install)
-4. [Usage](#usage)
+4. [Usage](#usage) (plus an optional [YouTube run check](#optional-verify-a-youtube-run))
 5. [Architecture](#architecture)
 6. [How each stage works](#how-each-stage-works)
 7. [Output files](#output-files)
@@ -102,6 +102,7 @@ python3 -m venv .fpvlaps-venv
 | Requirement | Needed for |
 |---|---|
 | Python 3.9+, `opencv-python-headless`, `numpy`, `imageio-ffmpeg` | Everything. `imageio-ffmpeg` ships an ffmpeg binary, so no system ffmpeg is needed for the core pipeline. |
+| `yt-dlp[default]` (in `requirements.txt`), Node.js or deno | Optional: [`verify --url`](#optional-verify-a-youtube-run) only. |
 | Node.js 18+ (`npx`), `ffmpeg` and `ffprobe` on PATH | Optional: the HyperFrames renderer (nicer typography, GSAP-animated overlay). Without these, the built-in OpenCV renderer produces the same layout. |
 
 `doctor` checks every dependency and prints which renderer will be used.
@@ -208,6 +209,33 @@ to check the winning laps against. Template: [`assets/track-README-template.md`]
 | Re-analysis on cached features (e.g. after `--anchor`) | 1–3 min |
 | Render, HyperFrames | 5–12 min for a 33 s clip (CPU only) |
 | Render, OpenCV | 3–10 min |
+
+### Optional: verify a YouTube run
+
+Not part of the main pipeline; nothing above changes if you never use it. `verify` downloads a video
+with `yt-dlp`, times it as a one-video session and checks a claimed result:
+
+```bash
+$PY $CLI verify --url https://youtu.be/<id> --claim 41.43 --readme /path/to/Track2/README.md
+```
+
+| Option | Meaning |
+|---|---|
+| `--url URL` | YouTube video, used instead of `--videos`. Only for videos you own or may use. |
+| `--claim T` | 3-lap total (`30.82`) or lap times (`10.27,10.33,10.22`). |
+| `--start` / `--end` | Analyse only part of the video (`m:ss` or seconds). |
+| `--tolerance S` | Allowed difference on the total. Default 3 frames (0.05 s at 60 fps). |
+
+The verdict in `<work>/verify.md` is **verified** (3 clean consecutive laps match the claimed
+total; lap times are shown for information only), **mismatch** (closest chain shown, with a
+`youtu.be` link per crossing), **not verifiable** (no reference or no 3-lap chain), or **detected**
+(no `--claim`). Edits are reported when the OSD timer jumps.
+
+Uploads rarely start parked, so give it a reference: `--readme`/`--track` for your own track build,
+`--no-readme --anchor <id>:FRAME` for anyone else's (every pilot builds the track at home, so your
+profile doesn't fit their room). With a hand-picked anchor the result is only as exact as the anchor;
+a ~0.1 s mismatch usually means the start is off. How to find the anchor:
+[SKILL.md](SKILL.md); how it works: [references/method.md](references/method.md).
 
 ---
 
@@ -317,6 +345,7 @@ flowchart TB
 | `report.py` | Human-readable report, CSV, verification contact sheets. |
 | `render.py` | Plans the clip, cuts it, draws the overlay with HyperFrames or OpenCV. |
 | `doctor.py` | Dependency and renderer check. |
+| `youtube.py`, `verify.py` | Optional YouTube run check (download, claim check, `verify.md`). |
 
 ### Data flow through the work directory
 
@@ -621,7 +650,8 @@ Tested on Track1 / Air65_2: 11 HDZero recordings, 1280×720 at 60 fps, 36 minute
   ticking element in the middle of the picture adds a little noise to lap matching (timer reading is
   unaffected).
 - **OSD font.** Digit templates come from Betaflight's default font. Other fonts fall back to
-  motion-based arm detection, which can miss short disarms.
+  motion-based arm detection, which can miss short disarms. A timer with wider character spacing
+  (seen on other pilots' OSDs) is recognised but only used by the optional `verify`.
 - **Thresholds** (`FAST_OUTLIER`, `GATE_FIT_MIN`, clean-cost clamps, `SHORT_LOOP_RATIO`,
   `CHAIN_MIN`, `LAP_MIN_FACTOR`) were tuned on two tracks.
   They are relative to each session, but unusual footage may need adjusting.
@@ -662,7 +692,9 @@ fpv-best-laps/
 │       ├── index.html           # HyperFrames overlay composition (templated)
 │       └── fonts/               # Inter 500/800 + OFL licence
 ├── tests/
-│   └── test_trackdir.py         # python -m unittest discover -s tests
+│   ├── test_trackdir.py         # python -m unittest discover -s tests
+│   ├── test_osd.py
+│   └── test_verify.py
 └── evals/
     └── evals.json               # test prompts for skill evaluation
 ```

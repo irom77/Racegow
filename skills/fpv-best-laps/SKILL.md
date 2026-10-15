@@ -1,7 +1,7 @@
 ---
 name: fpv-best-laps
 description: Find the fastest 3 consecutive clean laps in a folder of raw FPV / tiny-whoop race recordings (HDZero, DJI, Walksnail, analog DVR) and export that clip with a left-aligned overlay showing the total and each lap time. Parses the Betaflight OSD timers, detects the start gate, filters out crash laps, runs a sliding best-3-consecutive window across every video, and renders with HyperFrames (or an OpenCV fallback). Use this whenever someone wants lap times, best laps, fastest consecutive laps, a lap-timer overlay, or a highlight clip from drone race / RaceGOW / whoop track footage, even if they only say "time my laps" or point at a folder of hdz_*.mp4 files.
-compatibility: Python 3.9+ with opencv-python-headless, numpy, imageio-ffmpeg. Optional for the HTML renderer - Node.js (npx) plus ffmpeg and ffprobe on PATH.
+compatibility: Python 3.9+ with opencv-python-headless, numpy, imageio-ffmpeg. Optional for the HTML renderer - Node.js (npx) plus ffmpeg and ffprobe on PATH. Optional for YouTube URLs - yt-dlp.
 ---
 
 # FPV best 3 consecutive laps
@@ -127,6 +127,61 @@ video (from `report.md`, which lists frames and video times for every rank). Giv
 and explain the rejected one separately. Say plainly whether you verified the sheets. Lap
 times are accurate to about ±2-3 frames (±0.05 s at 60 fps).
 
+## Verify a run from a YouTube URL (optional)
+
+When someone gives a YouTube link instead of a folder (e.g. to check a leaderboard submission), use
+`verify`. It needs `yt-dlp` (`pip install 'yt-dlp[default]'`, which includes the `yt-dlp-ejs` YouTube needs; YouTube also needs Node.js or deno, which `doctor`
+checks). Only analyse videos the user owns or has permission to use (YouTube's terms of service);
+say so if it's someone else's video and they haven't said they may use it.
+
+```bash
+.fpvlaps-venv/bin/python <skill-dir>/scripts/fpvlaps.py verify --url "<youtube url>" [--claim 30.82 | --claim 10.27,10.33,10.22] [--start 1:20 --end 4:05] [--track <profile>.json | --readme <track>/README.md]
+```
+
+- The video is downloaded to `<work>/source/` (default work `./fpvlaps-work/yt_<id>`) at the highest
+  frame rate offered, then the original resolution, and analysed as a one-video batch. A variable
+  frame rate, a frame rate below 50 fps (doubled, with blended frames), or a `--start`/`--end` section is
+  re-encoded at a constant frame rate first.
+- `--claim` is the claimed 3-lap total or the 3 lap times. The verdict is decided on the **total**,
+  within ±3 frames (±0.05 s at 60 fps, ±0.10 s at 30 fps; `--tolerance` overrides it). Claimed lap
+  times are compared at ±0.15 s for information only: pilots time from their own line (a gate, the
+  start pad, a lap timer), and a line a few frames further along moves time from one lap to the next
+  but not out of the total. Without `--claim` the best clean laps are just reported.
+- **Whose track is it?** Each pilot builds the layout at home, so a track profile (`--track`, or the
+  `track.json` that `--readme` brings) is only valid for videos flown **on that same build**: the
+  user's own uploads. A profile from another room still produces laps (tested: another pilot's
+  room matched the user's profile as well as the user's own upload did), so the tool can't catch
+  this for you. For anyone else's video, never pass the user's profile or README: use `--no-readme`
+  and an anchor from that video.
+- **Finding the anchor** (`--anchor <id>:FRAME`, a start-gate pass that begins the run). Uploads
+  rarely have the parked start that automatic calibration needs (tested: one starts mid-flight, one
+  sits still for only 2.5 s). In order:
+  1. **The clip's own lap-timer overlay**, if it has one: read its running clock at two frames
+     (e.g. `10.83` at frame 900) and work back to the frame where it read 0
+     (`900 - 10.83 x fps`). That is where the pilot started timing.
+  2. **The gate pass in the opening seconds**: tile the first ~5 s of
+     `<work>/source/youtube/<id>.mp4` every 12 frames with the frame number on each tile (OpenCV,
+     like `report.crossing_sheet`), find the launch and the frame where the start gate's frame or
+     flag leaves the picture, then tile that range every 3 frames to pin it down.
+  Check `sheets/verify_crossings.jpg`: all rows should show the same spot. The anchor is used as
+  given, so the first lap moves with it; later crossings are refined and don't.
+  If the verdict is a mismatch by about 0.1 s with a hand-picked anchor, report it as "close;
+  depends on where the start is placed", not as a wrong claim (RealSco's 33.70 s claim: 33.58 s
+  at frame 186, 34.02 s at frame 160).
+- If `verify.md` says the reference came from automatic calibration of this one video, say that the
+  verdict is less certain.
+- Output: `<work>/verify.md` (and `verify.json`) with the verdict (**verified**, **mismatch**, **not
+  verifiable**, or **detected** without a claim), detected vs claimed laps, a YouTube link for every gate
+  crossing (`https://youtu.be/<id>?t=<s>`), edits found in the footage, and
+  `sheets/verify_crossings.jpg`. Look at the sheet before reporting **verified**, as in step 3.
+- Edits: a cut in the footage makes the OSD timer jump against the video; laps that span one don't
+  count. Without a readable OSD timer, edits can't be ruled out, and `verify.md` says so.
+- `--url` also works with `analyze` and `run` (instead of `--videos`); `--claim` on those adds the
+  verification step.
+
+Report the verdict, the detected and claimed laps (total and splits), where the anchor came from, and
+the links for any lap that didn't match.
+
 ## Same track again
 
 Calibration is saved to `<work>/track.json` + `track.npz`. Once the run is verified (sheets checked
@@ -148,9 +203,11 @@ session is steadier. A new layout needs a fresh calibration: just run without `-
 | Symptom | What to do |
 |---|---|
 | "No parked start found" / "Could not find a repeating lap pattern" | Footage doesn't start parked at the gate, or there are too few laps. Use `--anchor VIDEO:FRAME`. |
-| A video shows `armed via motion (no OSD timer found)` | No `mm:ss` timer is on screen, or the OSD font differs from Betaflight's default. Laps still work. Disarm detection then relies on motion only. |
+| A video shows `armed via motion (no OSD timer found)` | No `mm:ss` timer is on screen, or the OSD font differs from Betaflight's default. Laps still work. Disarm detection then relies on motion only. `motion (OSD timer in a wider layout, ...)`: a wide-spaced timer (other pilots' uploads) was found; `verify` uses it for edits and to overrule motion-guessed disarms. |
 | No 3-lap result | Not enough consecutive clean laps. Check `laps.csv` reasons, then `--rank` / the runners-up. |
 | HyperFrames render fails | Re-run with `--renderer opencv`, and report the HyperFrames error. |
+| `yt-dlp could not download`, or "Only images are available" | Update it (`pip install -U 'yt-dlp[default]'`), check `doctor` for a JavaScript runtime, and check the video is public or unlisted. |
+| `verify` says **not verifiable** on an upload | No reference or no 3-lap chain. Re-run with `--readme`/`--track` for the track, or `--anchor <id>:FRAME` on a start-gate crossing. |
 
 How the detection works and which knobs exist (`scripts/fpvlaps/config.py`): see
 `references/method.md`. Read it when the results look wrong or the footage is unusual (different

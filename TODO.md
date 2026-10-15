@@ -1,30 +1,5 @@
 # TODO
 
-## Feature: verify a run from a YouTube URL
-
-Let a pilot (or race organiser) point the tool at a YouTube video and get the 3-lap time and lap
-splits verified, e.g. to check a leaderboard submission.
-
-- [ ] New input: `--url <youtube-url>` on `analyze`/`run` (and a dedicated `verify` command), as an
-  alternative to `--videos`. Download with `yt-dlp` into `<work>/source/`, picking the highest
-  frame rate available (60 fps if offered) and keeping the original resolution.
-- [ ] Optional claimed result: `--claim 30.82` or `--claim 10.27,10.33,10.22`. Report whether the
-  detected best 3 consecutive laps match within a tolerance (default ±0.05 s per lap at 60 fps,
-  scaled for lower frame rates), and flag mismatches with the source timestamps to review.
-- [ ] Optional `--start hh:mm:ss --end hh:mm:ss` to restrict analysis to part of a long video
-  (YouTube uploads often contain several packs, intros or edits).
-- [ ] Handle uploaded-video differences: 30 fps or variable frame rate (normalise or read real
-  timestamps), heavier compression (OSD OCR thresholds), cropped/scaled OSD, and edits/cuts in the
-  middle of a run (detect jumps in the OSD timer and reject laps that span a cut).
-- [ ] Verification output: a `verify.md` with verdict (verified / mismatch / not verifiable), detected
-  vs claimed splits, the crossing contact sheets, and timestamp links back to the video
-  (`https://youtu.be/<id>?t=<seconds>`) for each gate crossing.
-- [ ] Single-video calibration is the weak spot (see `references/method.md`): allow `--track` with a
-  profile from the pilot's own footage of the same layout, and document that the verdict is less
-  certain without one.
-- [ ] Docs: SKILL.md workflow branch for URLs, README usage example, `yt-dlp` in requirements and
-  `doctor`. Note YouTube's terms of service: only analyse videos you own or have permission to use.
-
 ## Feature: show the date with the live lap clock
 
 Add the session date to the overlay, next to (or under) the live lap clock, so exported clips show
@@ -63,5 +38,16 @@ The finished features are in [TODO-archive.md](TODO-archive.md).
 
 - [ ] Background music: `--music-seed N` to re-create a generated track the pilot liked.
 - [ ] YouTube upload skill: craft name from the OSD instead of the `--quad` default (Air65).
+- [ ] Verify: a variable-frame-rate upload (the CFR re-encode is untested on real VFR footage).
+- [ ] Verify: digit templates for the wide OSD layout (40 px pitch). Other pilots' uploads misread
+  about 1 digit in 4 with the default-font templates (`0` as `3`, seconds 5-9), so those timers are
+  used for edit checks only, not arm detection. Keep them separate from `osd_digits.npz`.
+- [ ] Verify: read the anchor from a clip's own lap-timer overlay automatically (today: by hand,
+  `frame - clock x fps`).
+- [ ] Verify: start-line precision for uploads without an overlay clock. RealSco's
+  https://youtu.be/wqoGGwFT4bo (33.70 s) gives 33.58 s at anchor 186 and 34.02 s at 160 (gate pass
+  spans ~156-190); refine the anchor against the lap's own finish crossing instead of using it as given.
+- [ ] Verify: `--crop` or overlay masking for uploads with a burned-in overlay or a different crop
+  (today the raised match cost is accepted only when it is uniform across the upload).
 - [ ] Leaderboard skill: re-test when the Track 2 tab gets times (the latest track should become the
   top-level result).

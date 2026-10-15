@@ -74,6 +74,45 @@ track that starts parked at the gate".
    HyperFrames composition `assets/overlay/index.html` (GSAP timeline, running lap clock, pinned
    `hyperframes@0.8.145`) or the OpenCV fallback with the same layout.
 
+## Verifying a run (`verify`, optional)
+
+8. **Source** (`youtube.py`, only with `--url`): `yt-dlp` picks the highest frame rate, then the
+   highest resolution, preferring H.264 (OpenCV seeks it frame-accurately). A variable-frame-rate
+   download, or a `--start`/`--end` section, is re-encoded at a constant frame rate with ffmpeg's
+   `fps` filter (frames placed on their real timestamps); the section start is kept as an offset so
+   every crossing links back to the right second of the video. The result is a one-video batch in
+   `<work>/source/youtube/`, timed by steps 1-6 unchanged. Below 50 fps the rate is doubled with
+   blended in-between frames (`framerate` filter): lap matching steps in frames, so a 30 fps video
+   against a 60 fps profile would look like a lap flown at 2x speed, and plain duplicate frames would
+   zero the motion of every other frame.
+9. **Edits** (`verify.py`): an `mm:ss` timer that runs advances exactly as fast as the footage. Each
+   reading `s` at video time `t` bounds the offset `c` in `floor(t + c) = s` to `[s - t, s - t + 1)`;
+   intersecting these over a run pins `c` to a frame or two (0.15 s allowed for OSD refresh jitter).
+   Runs shorter than 1.5 s or without a tick are dropped (OCR glitches, a frozen timer while
+   disarmed). Between runs, a reset to ~0 is a re-arm, a backwards shift after a gap is a disarm pause,
+   and a forward shift (or a sudden backwards one) is an **edit**. A timer slot can show a different
+   timer for a while (Betaflight's crash-flip mode swaps the on-time timer into the fly-timer slot), so
+   an edit only counts when every other readable timer shows the same shift. Tested on 23 raw HDZero
+   recordings: no false edits. Edits below ~0.3 s are not seen.
+10. **Claim**: every chain of 3 consecutive laps that share crossings, clean or not, is compared with
+    the claimed **total**, within ±3 frames (at least 0.05 s). Claimed lap times are only shown, against
+    ±0.15 s: pilots time from their own line, and on Whooperza's Track 2 upload the pilot's lap timer
+    ticked 4-10 frames after the tool's crossings, which moved -0.08/+0.11/-0.05 s between the laps
+    while the total differed by 0.03 s. The verdict is **verified** for a clean chain without edits within tolerance,
+    **mismatch** otherwise (the closest clean chain, or the matching chain with why it doesn't count),
+    **not verifiable** with no chain or with a "reference lap looks wrong" warning.
+
+**Single-video calibration is the weak spot.** An upload is one video, often a clip that starts
+mid-flight. Automatic calibration then has one parked start or none and few laps to learn the start
+gate from, and the laps being checked are the ones that define the reference. Tested on two other
+pilots' uploads: neither had a parked start the calibration accepts (one starts mid-flight, one sits
+still for 2.5 s), so both needed `--anchor`, found from the clip's own lap-timer overlay or from the
+gate pass in the opening seconds. A track profile only fits the **same build** of the track: each
+pilot builds the layout at home, and another pilot's room matched the user's Track 2 profile at the
+same cost as the user's own upload (and scored higher on raw frame similarity), so a wrong-room
+profile can't be detected and still yields "laps". Use a profile only for the pilot who made it.
+`verify.md` marks a verdict from self-calibration as less certain.
+
 ## Tunables (`scripts/fpvlaps/config.py`)
 
 | Constant | Default | Change when |
@@ -114,3 +153,15 @@ track that starts parked at the gate".
   element there adds a little noise to the match cost.
 - OSD digit templates come from Betaflight's default font. Other fonts fall back to motion-based arm
   detection.
+- **Wide OSD layout.** Two other pilots' HDZero uploads (RaceGOW Track 2) draw the same glyphs on a
+  40 px character pitch instead of 32 px (`osd.WIDE_PITCHES` tries 34-44). These timers are stored as
+  `(cx, cy, dy, pitch)` and only searched for when the default layout finds **no** timer, so footage
+  with default timers extracts exactly as before (checked on all 58 readable Track 1/Track 2
+  recordings, including 2 with no default timer). A wide candidate must also trend upward like a clock over the calibration samples (Spearman rank
+  correlation >= 0.7 with video order), because a link-quality readout such as `LQ 28:100` also
+  reads as mm:ss. On those uploads about 1 digit in 4 is misread (mostly `0` as `3`), which breaks
+  `osd.arm_segments` (it tolerates only isolated glitches). So arm detection ignores wide timers and
+  stays on motion. `verify` uses them, because its clock fit (step 9) drops glitches: to find edits,
+  and to overrule a motion-guessed "disarmed during lap" when the timer runs unbroken through the
+  lap (clips cut tight around the run put the first and last crossing at the edge of the motion
+  segment).

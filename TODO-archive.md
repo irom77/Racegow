@@ -2,6 +2,67 @@
 
 Completed items moved out of [TODO.md](TODO.md), kept for the decisions and test notes. Open follow-ups from these features stay in TODO.md.
 
+## Feature: verify a run from a YouTube URL (done)
+
+Let a pilot (or race organiser) point the tool at a YouTube video and get the 3-lap time and lap
+splits verified, e.g. to check a leaderboard submission. Optional: nothing changes without `--url`,
+`--claim` or the `verify` command.
+
+- [x] `--url` on `run`/`extract`/`analyze` and a `verify` command, instead of `--videos`. `youtube.py`
+  downloads with `yt-dlp` (`-S fps,res,vcodec:h264`, so the highest frame rate, then the original
+  resolution) into `<work>/source/raw/`, and lays it out as a one-video batch in `source/youtube/`.
+  yt-dlp now needs a JavaScript runtime for YouTube: node is passed with `--js-runtimes` when deno
+  is missing. Default work dir `fpvlaps-work/yt_<id>`.
+- [x] `--claim 30.82` or `--claim 10.27,10.33,10.22`; tolerance ±3 frames per lap, at least 0.05 s
+  (0.10 s at 30 fps), `--tolerance` overrides. Every chain of 3 laps (clean or not) is compared, so
+  `verify.md` can say *why* matching laps don't count.
+- [x] `--start`/`--end`: the section is re-encoded at a constant frame rate; the offset is kept so
+  every crossing links to the right second.
+- [x] Upload differences. VFR: re-encoded at a constant rate. 30 fps: doubled to 60 with blended
+  frames (plain duplicates zeroed every other frame's motion, which broke the flight mask and the
+  lap period). Compression/overlay: the uploaded Track 2 clip matched the profile at cost 0.47-0.51
+  vs 0.25-0.27 for the same laps in the raw file; a lap rejected *only* for cost counts with a caveat
+  when the whole video's median cost is above the clean limit and the lap is within 1.25x of it.
+  Edits: OSD timer offset fitting (`floor(t + c) = s`), a jump must show on every readable timer
+  (Betaflight crash-flip mode swaps the on-time timer into the fly-timer slot: two false "cuts" in
+  23 raw recordings before this rule, none after).
+- [x] `verify.md` / `verify.json`: verdict (verified / mismatch / not verifiable / detected), detected
+  vs claimed laps, `sheets/verify_crossings.jpg`, `https://youtu.be/<id>?t=` per crossing, edits.
+  When the analysis can't run (no parked start, no reference), `verify` still writes a
+  not-verifiable report with the fix.
+- [x] `--readme`/`--track` as the reference for uploads; self-calibration is marked less certain.
+  Core change: with a profile, a session period above 1.5x the profile's is treated as a two-lap
+  alias (short clips); Track2/2nd re-analysis is identical before and after.
+- [x] Docs: SKILL.md section, README (usage, options, verdicts, module map, outputs, limits),
+  method.md, `yt-dlp` in requirements and `doctor`, YouTube terms-of-service note.
+- [x] After testing other pilots' uploads (RealSco 33.70 s, Whooperza 43.20 s, both Track 2):
+  - the verdict uses the claimed **total** (±3 frames); claimed lap times are shown against ±0.15 s
+    only. Whooperza's own lap timer ticked 4-10 frames after the tool's crossings: splits
+    -0.08/+0.11/-0.05 s, total -0.03 s.
+  - a track profile is valid only for the same build (each pilot builds the track at home). Wrong
+    room can't be detected: RealSco's room scored *higher* against the user's Track 2 profile than the
+    user's own upload. Docs say: other pilots' videos get `--no-readme --anchor`.
+  - anchors for uploads: from the clip's lap-timer overlay (clock reading -> frame where it read 0)
+    or the gate pass in the opening seconds (SKILL.md).
+  - OSD: wider character pitch (34-44 px, seen 40 px) tried only when the default layout finds no
+    timer, and only accepted when it trends like a clock (link quality `28:100` also reads as mm:ss).
+    Used by verify only (edits; overruling motion-guessed disarms at clip edges), not arm detection.
+    The clock fit takes a majority vote over ±1 s first, so 1-in-4 misreads don't split it.
+  - yt-dlp needs `yt-dlp[default]` (yt-dlp-ejs): plain yt-dlp got only storyboard images for
+    RealSco's "made for kids" video.
+- Tested: https://youtu.be/GG7-ezzppak (own Track 2 clip, claim 13.85/13.85/13.73) verified at 60 fps,
+  as a 30 fps copy and with `--start/--end`; a wrong claim gives a mismatch; a copy with 5 s cut out of
+  lap 2 reports the edit at 0:20.00 (+4.98 s); without a reference: not verifiable with the fix.
+  Unit tests: `tests/test_verify.py`.
+- Other pilots (both `--no-readme --anchor`): Whooperza https://youtu.be/Whlfubf2QkM (43.20 s,
+  anchor 250 from its own lap-timer overlay) verified at 43.17 s. RealSco
+  https://youtu.be/wqoGGwFT4bo (33.70 s) stays a **mismatch**: 11.33/11.00/11.25 = 33.58 s with
+  the anchor at frame 186 (34.02 s at 160). The quad is parked only ~2.5 s and the gate pass
+  spans ~156-190, so the start line can't be pinned to better than ~0.1 s by hand. No OSD edits.
+- Wide-layout OSD search vs HEAD: timer location and picture box identical on all 58 readable
+  Track 1/Track 2 recordings, incl. Track2/2nd hdz_0016/0017 (no default timer, so the wide search
+  ran and correctly found nothing). Track2/1st hdz_0014/0024 are truncated (no moov atom).
+
 ## Remove hard-coded local paths (done)
 
 - [x] Moved the original prototype from `src/` to `legacy/` with a README pointing to the skill.
