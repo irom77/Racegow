@@ -29,5 +29,18 @@ def doctor():
     print(f"renderer {'hyperframes' if hf else 'opencv (fallback)'}")
     if npx and not hf:
         print("         HyperFrames needs ffmpeg AND ffprobe on PATH (a static ffmpeg build provides both)")
+    try:
+        import yt_dlp
+        yt = f"{yt_dlp.version.__version__} (python module)"
+    except ImportError:
+        yt = shutil.which("yt-dlp")
+    print(f"yt-dlp   {yt or 'missing (only needed for --url / verify from YouTube) -> pip install yt-dlp'}")
+    if yt and not (shutil.which("deno") or npx):
+        print("         YouTube needs a JavaScript runtime for yt-dlp: install Node.js or deno")
+    if yt:
+        try:
+            import yt_dlp_ejs  # noqa: F401
+        except ImportError:
+            print("         yt-dlp-ejs missing: YouTube may offer no video formats -> pip install 'yt-dlp[default]'")
     print("status   " + ("ready" if ok else "NOT READY"))
     return 0 if ok else 1

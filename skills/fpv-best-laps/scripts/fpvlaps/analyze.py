@@ -43,9 +43,13 @@ def arm_info(v):
         return flight_segments_from_motion(v["motion"], v["fps"]), "motion (no OSD timer found)"
     secs = osd.to_seconds(osd.classify(v["cells"]))               # (samples, timers)
     readable = np.mean(~np.isnan(secs), 0)
-    rows = [r for r in range(secs.shape[1]) if readable[r] > 0.3]
+    # timers in a wider character layout are read with templates from the default one: too many
+    # misread digits for arm detection (verify still uses them to find edits)
+    wide = [len(t) > 3 for t in v["timers"]]
+    rows = [r for r in range(secs.shape[1]) if readable[r] > 0.3 and not wide[r]]
     if not rows:
-        return flight_segments_from_motion(v["motion"], v["fps"]), "motion (OSD unreadable)"
+        why = "OSD timer in a wider layout, used for edit checks only" if any(wide) else "OSD unreadable"
+        return flight_segments_from_motion(v["motion"], v["fps"]), f"motion ({why})"
     segs = {r: osd.arm_segments(secs[:, r], v["fps"], OCR_STEP) for r in rows}
     row = min(rows, key=lambda r: (-len(segs[r]), np.nanmedian(secs[:, r])))
     if not segs[row]:
@@ -273,6 +277,11 @@ def analyze(work, names, track=None, anchor=None, videos_dir=None, correct_lap=N
         # profile was made
         P = track_mod.lap_period(vids) or ref["period_s"]
         log(f"  lap period this session ~{P:.2f}s (profile: {ref['period_s']:.2f}s)")
+        if P > 1.5 * ref["period_s"]:
+            # far slower than the profile: in a short clip (e.g. one upload) the self-similarity peak
+            # can land on two laps instead of one
+            P = ref["period_s"]
+            log(f"  -> more than 1.5x the profile's period, probably two laps: using {P:.2f}s")
         all_laps, clean_thr, typical, chain = detect(vids, T, wins, P)
     elif anchor or correct_lap:
         if anchor:
