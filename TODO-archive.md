@@ -2,6 +2,14 @@
 
 Completed items moved out of [TODO.md](TODO.md), kept for the decisions and test notes. Open follow-ups from these features stay in TODO.md.
 
+## Remove hard-coded local paths (done)
+
+- [x] Moved the original prototype from `src/` to `legacy/` with a README pointing to the skill.
+- [x] Replaced the local folders in `legacy/extract.py` and `legacy/analyze.py` with placeholders
+  (`/path/to/videos`, relative `work/...`). The old paths remain in earlier commits; see the
+  `git filter-repo` item in TODO.md.
+- [x] `skills/fpv-best-laps/evals/evals.json`: test prompt now uses `/path/to/videos`.
+
 ## Feature: blurred background in the exported clip (done)
 
 HDZero (and other 4:3) footage sits in a 16:9 frame with black bars on the sides, and the lap panel

@@ -2,8 +2,8 @@
 import cv2, numpy as np, pickle, sys, os, glob
 from multiprocessing import Pool
 
-SRC = '/mnt/c/Users/irekr/Videos/RaceeGow6/Track1/Air65_2'
-OUT = '/home/irom/RaceGow6/work/feat'
+SRC = '/path/to/videos'  # folder of hdz_*.mp4 recordings
+OUT = 'work/feat'
 # OSD timer strip (full-res, 1280x720); its x offset varies per recording
 STRIP_Y0, STRIP_Y1, STRIP_X0, STRIP_X1 = 440, 536, 888, 1120
 # 4:3 picture area and OSD masks (in half-res coords of the 4:3 crop, 480x360)

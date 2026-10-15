@@ -5,11 +5,6 @@
 These files contain absolute paths from the original development machine (including a Windows
 username). They work only there and expose local directory names in a public repo.
 
-- [ ] `legacy/` (the archived prototype, moved from `src/`) still names local folders in
-  `extract.py` and `analyze.py` (`/mnt/c/Users/...`, `/home/irom/...`). It no longer needs to run, so
-  either blank them out or leave them if exposing the folder names is acceptable.
-- [ ] `skills/fpv-best-laps/evals/evals.json`: the test prompt names a personal video folder.
-  Replace with a placeholder such as `/path/to/videos`.
 - [ ] Optional: rewrite git history (`git filter-repo`) if the old paths should disappear from
   earlier commits too, not just the latest one.
 

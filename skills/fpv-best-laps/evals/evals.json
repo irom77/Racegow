@@ -3,7 +3,7 @@
   "evals": [
     {
       "id": 1,
-      "prompt": "Find my 3 fastest consecutive laps in /mnt/c/Users/irekr/Videos/RaceeGow6/Track1/Air65_2 and export the clip with the lap times on the left.",
+      "prompt": "Find my 3 fastest consecutive laps in /path/to/videos and export the clip with the lap times on the left.",
       "expected_output": "Best window hdz_0026, laps ~10.23/10.37/10.25 s, total ~30.8 s (manual ground truth 30.77 s, frames 5820-7666 at the gate bar); MP4 with left-aligned overlay; report.md + sheets verified.",
       "files": []
     },

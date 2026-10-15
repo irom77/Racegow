@@ -13,8 +13,8 @@ sys.path.insert(0, os.path.dirname(__file__))
 from osd import read_timers
 from lapdtw import descriptors, lap_matches, STEP
 
-FEAT = '/home/irom/RaceGow6/work/feat'
-CENT = np.load('/home/irom/RaceGow6/work/cent_all.npy')
+FEAT = 'work/feat'
+CENT = np.load('work/cent_all.npy')
 FPS = 60.0
 OCR_STEP = 3
 REF_VIDEO, REF_CROSS = 'hdz_0024', (963, 1596)   # verified start-gate crossings (top bar leaves frame)
@@ -142,4 +142,4 @@ if __name__ == '__main__':
     print('\nBEST 3 CONSECUTIVE:', None if b is None else
           f"{b['video']} total {b['total']:.2f}s laps {[round(l['time'], 2) for l in b['laps']]} "
           f"frames {b['laps'][0]['start']}..{b['laps'][2]['end']}")
-    json.dump(dict(results=results, best=b), open('/home/irom/RaceGow6/work/analysis.json', 'w'), indent=1, default=float)
+    json.dump(dict(results=results, best=b), open('work/analysis.json', 'w'), indent=1, default=float)
