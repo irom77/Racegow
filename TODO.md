@@ -1,13 +1,5 @@
 # TODO
 
-## Remove hard-coded local paths
-
-These files contain absolute paths from the original development machine (including a Windows
-username). They work only there and expose local directory names in a public repo.
-
-- [ ] Optional: rewrite git history (`git filter-repo`) if the old paths should disappear from
-  earlier commits too, not just the latest one.
-
 ## Feature: verify a run from a YouTube URL
 
 Let a pilot (or race organiser) point the tool at a YouTube video and get the 3-lap time and lap

@@ -6,9 +6,10 @@ Completed items moved out of [TODO.md](TODO.md), kept for the decisions and test
 
 - [x] Moved the original prototype from `src/` to `legacy/` with a README pointing to the skill.
 - [x] Replaced the local folders in `legacy/extract.py` and `legacy/analyze.py` with placeholders
-  (`/path/to/videos`, relative `work/...`). The old paths remain in earlier commits; see the
-  `git filter-repo` item in TODO.md.
+  (`/path/to/videos`, relative `work/...`). The old paths remain in earlier commits.
 - [x] `skills/fpv-best-laps/evals/evals.json`: test prompt now uses `/path/to/videos`.
+- Decided: keep git history as is (no `git filter-repo`). The old paths are only folder names, and
+  rewriting would change every commit hash and force existing clones to re-clone.
 
 ## Feature: blurred background in the exported clip (done)
 
