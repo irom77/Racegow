@@ -101,6 +101,24 @@ The agent runs the analysis, checks the verification images, corrects the gate i
 and reports the lap table. Other agents (Cursor, Gemini CLI, Aider...) can be pointed at
 `skills/fpv-best-laps/SKILL.md` from their rules file.
 
+### Optional: check a run posted on YouTube
+
+`verify` takes a YouTube link instead of a DVR folder and checks a claimed time: it downloads the
+video with `yt-dlp`, finds 3 clean consecutive laps and compares their total with the claim. It is
+an add-on; the normal workflow above doesn't use it.
+
+```bash
+.fpvlaps-venv/bin/python skills/fpv-best-laps/scripts/fpvlaps.py verify \
+    --url https://youtu.be/<id> --claim 41.43 --readme /path/to/Track2/README.md
+```
+
+`fpvlaps-work/yt_<id>/verify.md` gives the verdict (**verified**, **mismatch**, **not verifiable**)
+with a YouTube link for each gate crossing, and any cuts found in the OSD timer. For your own runs,
+`--readme` (or `--track`) brings your track profile. For another pilot's video use
+`--no-readme --anchor <id>:FRAME` instead, since their track build differs from yours. Or ask your
+agent: *"Verify https://youtu.be/<id>, claimed 41.43 s on Track 2."* Details:
+[skill README](skills/fpv-best-laps/README.md#optional-verify-a-youtube-run).
+
 ### RaceGOW leaderboard position
 
 A second, small skill, [`skills/racegow-leaderboard`](skills/racegow-leaderboard/SKILL.md), looks up
@@ -171,7 +189,7 @@ Racegow/
 ├── skills/fpv-best-laps/      ← the product: agent skill + CLI (start here)
 │   ├── SKILL.md               agent instructions
 │   ├── README.md              full architecture and usage
-│   ├── scripts/fpvlaps.py     CLI: doctor · run · extract · analyze · render · save-track
+│   ├── scripts/fpvlaps.py     CLI: doctor · run · extract · analyze · render · save-track · verify
 │   ├── scripts/fpvlaps/       pipeline package
 │   ├── references/method.md   detailed method and tunables
 │   ├── tests/                 unit tests (python -m unittest discover -s skills/fpv-best-laps/tests)
@@ -193,6 +211,7 @@ Racegow/
 - **Python 3.9+** with `opencv-python-headless`, `numpy`, `imageio-ffmpeg` (ffmpeg is bundled).
 - **Optional:** Node.js 18+ plus `ffmpeg`/`ffprobe` on PATH for the HyperFrames renderer. Without
   them the OpenCV renderer produces the same layout.
+- **Optional:** `yt-dlp` (in `requirements.txt`) plus Node.js or deno, only for `verify --url`.
 - **Footage:** each recording should start with the quad parked in front of the start gate. One OSD
   `mm:ss` timer, anywhere on screen, gives the most reliable crash/disarm detection; without one,
   motion is used instead.
