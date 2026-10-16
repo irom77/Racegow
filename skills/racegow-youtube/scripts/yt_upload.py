@@ -203,8 +203,12 @@ def build_meta(a):
     if lb and lb.get("rank"):
         when = (lb.get("fetched_at") or "")[:10]
         tnum = re.sub(r"\D", "", lb.get("track", "")) or "?"
-        pilot += (f" · current RaceGOW{race} Track {tnum} rank: {ordinal(lb['rank'])} of {lb['of']}"
-                  f" (unofficial times, {when})")  # no top/bottom half here: that's for the report only
+        if lb.get("status") == "official":
+            pilot += (f" · RaceGOW{race} Track {tnum} official rank: {ordinal(lb['rank'])} of {lb['of']}"
+                      + (f", Micro Tier {lb['tier']}" if lb.get("tier") else ""))
+        else:  # no top/bottom half here: that's for the report only
+            pilot += (f" · current RaceGOW{race} Track {tnum} rank: {ordinal(lb['rank'])} of {lb['of']}"
+                      f" (unofficial times, {when})")
     elif not a.no_rank:
         warnings.append("leaderboard position not found: description has no rank (or pass --leaderboard)")
     lines.append(pilot)
@@ -248,7 +252,7 @@ def build_meta(a):
         "context": {
             "work": str(work), "rank": a.rank, "video": best["video"], "total": best["total"],
             "readme": str(readme) if readme else None, "flown": flown, "flown_source": flown_src,
-            "leaderboard": {k: (lb or {}).get(k) for k in ("track", "rank", "of", "half", "fetched_at")},
+            "leaderboard": {k: (lb or {}).get(k) for k in ("track", "status", "rank", "of", "tier", "half", "fetched_at")},
         },
         "warnings": warnings,
     }

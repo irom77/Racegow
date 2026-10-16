@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Find a pilot's position on the RaceGOW leaderboards by "Unofficial Time".
+"""Find a pilot's position on the RaceGOW leaderboards.
 
 The page https://www.racegow.com/leaderboards (a Google Site) embeds a public Google Sheet, one
-tab per track ("Track1", "Track2", ...) plus summary tabs. The sheet's "Rank" column stays "TBD"
-until the results livestream, so the position is computed here: sort every entry with a valid
+tab per track ("Track1", "Track2", ...) plus summary tabs. Once a track's results are out, the
+sheet fills "Rank", "Official Time" and "Micro Tier ..." per entry; that official rank is used.
+Before that "Rank" says "TBD", so the position is computed here: sort every entry with a valid
 Unofficial Time and count how many are strictly faster.
 
 Standard library only. Exit codes: 0 found, 2 pilot not found, 3 page/sheet layout changed.
@@ -21,6 +22,7 @@ PAGE = "https://www.racegow.com/leaderboards"
 SHEET = "https://docs.google.com/spreadsheets/d/{id}"
 UA = {"User-Agent": "Mozilla/5.0 (racegow-leaderboard skill)"}
 TIME_COL, PILOT_COL, REG_COL = "Unofficial Time", "Pilot Name", "Reg#"
+RANK_COL, OFFICIAL_COL = "Rank", "Official Time"
 
 
 class LayoutChanged(Exception):
@@ -74,6 +76,38 @@ def parse_time(s):
     return t if 0 < t < 600 else None  # drop typos such as 23232
 
 
+def rank_int(s):
+    s = (s or "").strip()
+    return int(s) if s.isdigit() else None
+
+
+def official_result(rows, own_rows):
+    """The sheet's own result once published: the pilot's best official Rank, else None.
+
+    The fastest pilots stay hidden as placeholder rows (a Rank, no Reg#/times) until the results
+    livestream; they still count. Entries listed after the last one with an Official Time have no
+    official time, so the field size is the highest Rank that has one.
+    """
+    if OFFICIAL_COL not in rows[0]:
+        return None
+    timed = [r for r in rows if rank_int(r.get(RANK_COL)) and parse_time(r.get(OFFICIAL_COL))]
+    mine = [r for r in own_rows if r in timed]
+    if not mine:
+        return None
+    best = min(mine, key=lambda r: rank_int(r[RANK_COL]))
+    tier_col = next((c for c in rows[0] if c.lower().startswith("micro tier")), None)
+    tier = (best.get(tier_col) or "").strip() if tier_col else ""
+    return {
+        "rank": rank_int(best[RANK_COL]),
+        "of": max(rank_int(r[RANK_COL]) for r in timed),
+        "official_time": parse_time(best[OFFICIAL_COL]),
+        "tier": int(tier) if tier.isdigit() else None,
+        "tier_label": tier_col,
+        "hidden_top": sum(1 for r in rows if rank_int(r.get(RANK_COL))
+                          and not r[REG_COL].strip() and not parse_time(r.get(TIME_COL))),
+    }
+
+
 def rank_track(rows, pilot, reg):
     """Position of the pilot's best entry. None if the pilot has no timed entry on this tab."""
     if rows and not {TIME_COL, PILOT_COL, REG_COL} <= set(rows[0]):
@@ -83,7 +117,8 @@ def rank_track(rows, pilot, reg):
         t = parse_time(r.get(TIME_COL, ""))
         if t is not None:
             entries.append({"row": i + 2, "time": t, "pilot": r[PILOT_COL].strip(),
-                            "reg": r[REG_COL].strip(), "video": r.get("Video Link", "").strip()})
+                            "reg": r[REG_COL].strip(), "video": r.get("Video Link", "").strip(),
+                            "raw": r})
     if not entries:
         return None
 
@@ -108,18 +143,26 @@ def rank_track(rows, pilot, reg):
     # listed until after the deadline"), so the real position can be lower than computed.
     hidden = any("not be listed" in str(v).lower() for r in rows[:15] for v in r.values())
     rank, of = faster_pilots + 1, len(per_pilot)
+    unofficial = {"rank": rank, "of": of,
+                  "rank_by_entry": sum(1 for e in entries if e["time"] < best["time"]) + 1}
+    official = official_result(rows, [e["raw"] for e in own])
+    if official:
+        rank, of = official["rank"], official["of"]
     return {
         "found": True,
+        "status": "official" if official else "unofficial",
         "pilot": best["pilot"], "reg": best["reg"], "time": best["time"],
         "video": best["video"], "sheet_row": best["row"],
         "rank": rank, "of": of,
+        **({k: official[k] for k in ("official_time", "tier", "tier_label", "hidden_top")}
+           if official else {}),
+        "unofficial": unofficial,
         # Top half: rank in the first of/2 places (with an odd count the middle pilot is bottom).
         "half": "top" if rank <= of / 2 else "bottom",
         "top_percent": round(100 * rank / of, 1),  # e.g. 65.0 = within the top 65 %
-        "rank_by_entry": sum(1 for e in entries if e["time"] < best["time"]) + 1,
         "entries": len(entries),
         "own_entries": [{"time": e["time"], "row": e["row"]} for e in own],
-        "hidden_fast_times": hidden,
+        "hidden_fast_times": hidden and not official,
     }
 
 
@@ -162,9 +205,10 @@ def main():
     }
     if found:  # latest track the pilot appears on, for the upload skill's description
         latest = max(found, key=lambda n: int(re.sub(r"\D", "", n)))
-        out.update(track=latest, rank=found[latest]["rank"], of=found[latest]["of"],
-                   time=found[latest]["time"], half=found[latest]["half"],
-                   top_percent=found[latest]["top_percent"])
+        t = found[latest]
+        out.update(track=latest, status=t["status"], rank=t["rank"], of=t["of"],
+                   time=t.get("official_time") or t["time"], half=t["half"],
+                   top_percent=t["top_percent"], tier=t.get("tier"))
     text = json.dumps(out, indent=2)
     print(text)
     if a.out:

@@ -122,8 +122,9 @@ agent: *"Verify https://youtu.be/<id>, claimed 41.43 s on Track 2."* Details:
 ### RaceGOW leaderboard position
 
 A second, small skill, [`skills/racegow-leaderboard`](skills/racegow-leaderboard/SKILL.md), looks up
-a pilot's current place on the [RaceGOW leaderboards](https://www.racegow.com/leaderboards) by
-Unofficial Time, per track, including whether it's in the top or bottom half of all pilots. It
+a pilot's place on the [RaceGOW leaderboards](https://www.racegow.com/leaderboards), per track:
+the official Rank, Official Time and Micro Tier once a track's results are out, otherwise a rank
+worked out from the Unofficial Times. It also says whether that's in the top or bottom half. It
 needs only Python's standard library:
 
 ```bash
@@ -131,6 +132,10 @@ python3 skills/racegow-leaderboard/scripts/leaderboard.py --pilot papfpv --reg 3
 ```
 
 Or ask your agent: *"What's my current RaceGOW position?"*
+
+The official rules (scoring, micro tiers, classes) are saved in [`rules/`](rules/README.md), one
+folder per season. `python3 rules/update_rules.py` refreshes them from racegow.com; `git diff rules/`
+then shows what changed.
 
 ### Upload the clip to YouTube
 
@@ -198,6 +203,7 @@ Racegow/
 ├── export/                    HyperFrames project used for the first hand-verified export
 │   ├── index.html             overlay composition
 │   └── snapshots/             preview frames
+├── rules/                     official RaceGOW rules per season (RaceGOW6/), refreshed by rules/update_rules.py
 └── docs/                      logo and README images
 ```
 
