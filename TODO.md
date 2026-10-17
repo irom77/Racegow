@@ -32,6 +32,53 @@ sounds different and calls what actually happened. Can be used alone or on top o
   `<work>/export/commentary.txt` so it can be reviewed or edited and re-rendered.
 - [ ] Docs: SKILL.md render step and README options table.
 
+## Feature: sector splits and theoretical best
+
+Time each section of every clean lap, so the pilot sees where a lap is won or lost. Only possible
+because every lap is already aligned to the reference lap (subsequence DTW); a manual gate-marking
+tool can't do this.
+
+- [ ] Split the reference lap into 3-4 sectors: evenly by default, or at frames given with
+  `--sectors F1,F2,...` and saved in `track.json`.
+- [ ] Map each sector boundary into every clean lap through the DTW path and time each sector.
+- [ ] Per-sector best, and the theoretical best lap made of those best sectors.
+- [ ] `result.json`: per-lap sector times. `report.md`: a sector table with the best in each
+  sector highlighted, plus the theoretical best against the real best.
+- [ ] Docs: SKILL.md, method.md and the README.
+
+## Feature: side-by-side lap comparison
+
+Inspired by [FPV DVR Lap Timer](https://github.com/lenuxfpv/fpv-dvr-lap-timer)'s "Compare two
+laps".
+
+- [ ] `compare --lap VIDEO:LAP --lap VIDEO:LAP` (laps from the same or different sessions of a
+  track): render both side by side, each starting on its own gate frame, with both lap clocks.
+- [ ] Running gap at every point of the lap via DTW alignment (not only at the finish), e.g.
+  "+0.4 s after the dive". Show sector deltas once sector splits exist.
+- [ ] Default pair: the best lap of this session against the best lap ever on the track.
+- [ ] Both renderers (HyperFrames and OpenCV), no audio or a single audio track.
+
+## Feature: progress across sessions and consistency stats
+
+Inspired by FPV DVR Lap Timer's progress and consistency charts. No database: read the saved
+`result.json` files.
+
+- [ ] `history --track TrackN`: collect every session's `result.json` for the track and chart best
+  lap, best 3, median clean lap and clean-lap % over time (static HTML or PNG, linked from
+  `report.md`).
+- [ ] Consistency in `report.md`: standard deviation of clean laps, gap between best and median
+  lap, crash/bad-lap rate.
+
+## Smaller ideas from FPV DVR Lap Timer
+
+- [ ] Manual corrections that stick across re-runs: nudge a gate crossing by ±N frames, force a lap
+  clean or bad (today only `--anchor`). The `rankN_crossings.jpg` sheets show what to check.
+- [ ] Export extras: intro card with pilot handle / sticker, configurable padding before and after,
+  move or hide parts of the overlay.
+- [ ] Best N consecutive laps (2-10), not only 3: check whether `laps_per_result` is already wired
+  to a CLI option.
+- [ ] Incremental runs: notice new `hdz_*` files in a track folder and process only those.
+
 ## Follow-ups from finished features
 
 The finished features are in [TODO-archive.md](TODO-archive.md).
