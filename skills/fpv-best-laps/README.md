@@ -159,6 +159,8 @@ $PY $CLI analyze --videos /path/to/videos --work ./w      # extract + analyze on
 $PY $CLI render  --work ./w --rank 1                      # export a verified rank
 $PY $CLI save-track --work ./w                            # keep a verified profile next to the track README
 $PY $CLI history --track /path/to/Track2                  # progress chart over every analysed session
+$PY $CLI compare --work ./w                               # best lap here vs best lap on the track, side by side
+$PY $CLI compare --lap w1/hdz_0023:best --lap w2/hdz_0022@86.7   # any two laps
 ```
 
 **Track folder layout.** Keep one folder per track with a `README.md` and one subfolder per session:
@@ -184,13 +186,14 @@ to check the winning laps against. Template: [`assets/track-README-template.md`]
 | `run` | `analyze` + `render` in one go. |
 | `save-track` | Copies a verified run's `track.json` + `track.npz` next to the track README (`--to DIR` otherwise). Won't replace an existing profile without `--force` (old one kept as `.bak`). |
 | `history` | Progress across sessions: reads every `<work-root>/*/result.json` of the track (`--track` = track folder or name, e.g. `Track2`) and writes `history.html` + `history.json` (best lap, best 3, median clean lap, clean-lap % per session) into the track folder, linked from each session's `report.md`. The same footage analysed twice counts once. |
+| `compare` | Two laps side by side (same or different sessions of a track): both lap clocks from their own gate frame, the running gap at every point of the lap (DTW alignment of the two laps) and sector deltas. No `--lap`: the best clean lap of `--work` vs the best clean lap on the track. Writes `<work>/compare/<A>_vs_<B>/` (`compare.md`, `compare.json`, `gap.png`, the video). `--renderer auto` means OpenCV here (~40 s); HyperFrames only with `--renderer hyperframes` (~15 min for a 15 s clip). |
 
 | Option | Default | Meaning |
 |---|---|---|
 | `--videos DIR` | – | Folder of recordings (`.mp4 .mov .mkv .avi .ts .m4v`), one session per file. Under WSL use `/mnt/c/...`. |
 | `--work DIR` | `./fpvlaps-work/<folder name>` | Cache and output folder. |
 | `--track PROFILE.json` | – | Reuse a saved track profile instead of calibrating. With `history`: the track folder or name. |
-| `--work-root DIR` | `./fpvlaps-work` | `history`: folder holding one work directory per session. |
+| `--work-root DIR` | `./fpvlaps-work` | `history`, `compare`: folder holding one work directory per session. |
 | `--out DIR` | the track folder | `history`: where to write `history.html` / `history.json`. |
 | `--anchor VIDEO:FRAME` | – | Manual start-gate crossing, e.g. `hdz_0024:1596`. Overrides auto calibration. |
 | `--sectors N` or `F1,F2,...` | 3 | Sector splits: split the reference lap evenly into N sectors, or at these reference-video frames (saved in `track.json` and reused). |
@@ -198,6 +201,9 @@ to check the winning laps against. Template: [`assets/track-README-template.md`]
 | `--no-readme` | – | Ignore the track README (reference from `--track`/`--anchor` or auto calibration only). |
 | `--workers N` | cores / 3 | Videos decoded in parallel during extraction. |
 | `--rank N` | 1 | Which ranked result to render. |
+| `--lap SPEC` (twice) | best here vs best on the track | `compare`: `[SESSION/]VIDEO:N` (Nth lap of the video in `laps.csv`), `VIDEO@SECONDS` (lap starting nearest that time) or `VIDEO:best`. SESSION = a work directory or its name under `--work-root`; without it, `--work` or the one session that has that video. |
+| `--audio a\|b\|none` | `a` | `compare`: whose audio the video keeps. |
+| `--no-video` | – | `compare`: only `compare.md` / `compare.json` / `gap.png`. |
 | `--renderer` | `auto` | `auto`, `hyperframes` or `opencv`. |
 | `--lead S` | 1.0 | Seconds of footage kept before the first and after the last crossing. |
 | `--title TEXT` | `<folder> · <video>` | Overlay subtitle. |
@@ -350,6 +356,7 @@ flowchart TB
 | `report.py` | Human-readable report, CSV, verification contact sheets. |
 | `render.py` | Plans the clip, cuts it, draws the overlay with HyperFrames or OpenCV. |
 | `sectors.py` | Sector splits: maps sector boundaries from the reference lap into every clean lap along the DTW path, theoretical best, the `report.md` sector table. |
+| `compare.py` | Side-by-side lap comparison (`compare`): lap specs and the default pair, the running gap (DTW of the two laps), sector deltas, `compare.md`, both renderers. |
 | `history.py` | Progress across sessions (`history`): collects a track's `result.json` files, writes `history.html` / `history.json`; the consistency stats in `report.md`. |
 | `doctor.py` | Dependency and renderer check. |
 | `youtube.py`, `verify.py` | Optional YouTube run check (download, claim check, `verify.md`). |
@@ -588,9 +595,13 @@ afterwards, and `render_rankN.json` records what was rendered.
 │   ├── reference_lap.jpg        # start + end crossing of the reference lap
 │   ├── rank1..3_crossings.jpg   # the 4 crossings of each top window
 │   └── sectors.jpg              # the reference lap's view at each sector boundary
-└── export/
-    ├── best3_laps_<video>_<total>s.mp4
-    └── render_rank<N>.json
+├── export/
+│   ├── best3_laps_<video>_<total>s.mp4
+│   └── render_rank<N>.json
+└── compare/<A>_vs_<B>/          # compare: lap A of this session vs lap B
+    ├── compare.md, compare.json # gap summary, sector deltas, the gap curve (20 Hz)
+    ├── gap.png                  # running gap chart
+    └── compare_<A>_<time>s_vs_<B>_<time>s.mp4
 ```
 
 **Reading the sheets.** In `reference_lap.jpg`, both rows must show the same place: the start gate
@@ -696,13 +707,16 @@ fpv-best-laps/
 ├── assets/
 │   ├── osd_digits.npz           # OSD digit templates
 │   ├── track-README-template.md # track folder README the CLI reads
-│   └── overlay/
-│       ├── index.html           # HyperFrames overlay composition (templated)
-│       └── fonts/               # Inter 500/800 + OFL licence
+│   ├── overlay/
+│   │   ├── index.html           # HyperFrames overlay composition (templated)
+│   │   └── fonts/               # Inter 500/800 + OFL licence
+│   └── compare/
+│       └── index.html           # HyperFrames side-by-side comparison (templated)
 ├── tests/
 │   ├── test_trackdir.py         # python -m unittest discover -s tests
 │   ├── test_osd.py
 │   ├── test_history.py
+│   ├── test_compare.py
 │   ├── test_sectors.py
 │   └── test_verify.py
 └── evals/

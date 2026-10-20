@@ -12,6 +12,8 @@ the clip with a left-aligned lap-time overlay.
                              [--start h:mm:ss] [--end h:mm:ss] [--tolerance 0.05] [--track PROFILE.json]
   python fpvlaps.py save-track --work DIR [--to TRACK_DIR] [--force]
   python fpvlaps.py history  --track TRACK_DIR|NAME [--work-root DIR] [--out DIR]
+  python fpvlaps.py compare  [--work DIR] [--lap [SESSION/]VIDEO:N|VIDEO@SECONDS|VIDEO:best --lap ...]
+                             [--work-root DIR] [--renderer ...] [--audio a|b|none] [--no-video]
   python fpvlaps.py render   --work DIR [--rank 1] [--renderer auto|hyperframes|opencv]
                              [--background blur|black] [--blur-strength 40]
                              [--music FILE|auto] [--music-volume -10]
@@ -30,7 +32,11 @@ downloaded to <work>/source/ (default work ./fpvlaps-work/yt_<id>) and analysed 
 analyse videos you own or have permission to use.
 
 `history` charts best lap, best 3, median clean lap and clean-lap % over every analysed session of a
-track (the result.json files under --work-root) into history.html; see fpvlaps/history.py."""
+track (the result.json files under --work-root) into history.html; see fpvlaps/history.py.
+
+`compare` renders two laps side by side with both lap clocks and the running gap (DTW alignment), plus
+sector deltas, into <work>/compare/. No --lap: this session's best lap vs the best lap on the track.
+See fpvlaps/compare.py."""
 import argparse
 import sys
 from pathlib import Path
@@ -44,7 +50,8 @@ def default_work(videos):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("command", choices=["doctor", "run", "extract", "analyze", "render", "save-track", "verify", "history"])
+    ap.add_argument("command", choices=["doctor", "run", "extract", "analyze", "render", "save-track", "verify", "history",
+                                        "compare"])
     ap.add_argument("--videos", help="folder of FPV recordings (one session per file)")
     ap.add_argument("--url", help="YouTube video to analyse instead of --videos (downloaded with yt-dlp)")
     ap.add_argument("--start", help="with --url: analyse from this time in the video (h:mm:ss, m:ss or seconds)")
@@ -57,10 +64,16 @@ def main():
     ap.add_argument("--track", help="track profile JSON to reuse (skips gate calibration); "
                                     "history: the track folder or its name (e.g. Track2)")
     ap.add_argument("--work-root", default="fpvlaps-work",
-                    help="history: folder holding one work directory per session (default ./fpvlaps-work)")
+                    help="history/compare: folder holding one work directory per session (default ./fpvlaps-work)")
     ap.add_argument("--out", help="history: folder for history.html (default: the track folder)")
     ap.add_argument("--sectors", help="sector splits: a count (split the reference lap evenly, default 3) or "
                                       "reference-lap frames F1,F2,... (saved in track.json)")
+    ap.add_argument("--lap", action="append", help="compare: a lap as [SESSION/]VIDEO:N (Nth lap in laps.csv), "
+                                                   "VIDEO@SECONDS or VIDEO:best; give two (default: this session's "
+                                                   "best lap vs the best lap on the track)")
+    ap.add_argument("--audio", default="a", choices=["a", "b", "none"],
+                    help="compare: audio of lap A (default), lap B, or none")
+    ap.add_argument("--no-video", action="store_true", help="compare: only compare.md/json and gap.png")
     ap.add_argument("--anchor", help="manual start-gate crossing VIDEO:FRAME (overrides auto calibration)")
     ap.add_argument("--readme", help="track README to use (default: README.md in --videos or its parent)")
     ap.add_argument("--no-readme", action="store_true", help="ignore the track README")
@@ -69,7 +82,8 @@ def main():
     ap.add_argument("--workers", type=int, help="parallel videos during extraction")
     ap.add_argument("--rank", type=int, default=1, help="which result to render (1 = fastest)")
     ap.add_argument("--renderer", default="auto", choices=["auto", "hyperframes", "opencv"])
-    ap.add_argument("--lead", type=float, default=1.0, help="seconds of footage before/after the 3 laps")
+    ap.add_argument("--lead", type=float, default=1.0, help="seconds of footage before/after the 3 laps "
+                                                                     "(compare: before/after the laps)")
     ap.add_argument("--background", default="blur", choices=["blur", "black"],
                     help="fill the black side bars with a blurred copy of the footage (default) or keep them")
     ap.add_argument("--blur-strength", type=float, default=40, help="background blur radius in pixels (default 40)")
@@ -96,6 +110,11 @@ def main():
         if not a.track:
             ap.error("--track is required (track folder or name)")
         write_history(a.track, a.work_root, a.out)
+        return
+
+    if a.command == "compare":
+        from fpvlaps.compare import compare
+        compare(a.work, a.lap, a.work_root, a.renderer, a.audio, a.lead, not a.no_video)
         return
 
     needs_input = a.command in ("run", "extract", "analyze", "verify")

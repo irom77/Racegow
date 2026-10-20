@@ -223,6 +223,28 @@ per session, plus a table) and `history.json` into the track folder (`--out DIR`
 it from each session's `report.md`. Session dates come from a `YYYY-MM-DD` batch folder name, else the
 recordings' file dates, else the first analysis. Report the trend from the table in a few lines.
 
+## Comparing two laps
+
+When the pilot asks where a lap was faster or slower than another (their best ever, last session's,
+a friend's run on the same track), render them side by side:
+
+```bash
+.fpvlaps-venv/bin/python <skill-dir>/scripts/fpvlaps.py compare --work <work>        # best lap here vs best on the track
+.fpvlaps-venv/bin/python <skill-dir>/scripts/fpvlaps.py compare --lap Track2-2nd/hdz_0023:best --lap Track2-1st/hdz_0022@86.7
+```
+
+A lap is `[SESSION/]VIDEO:N` (Nth lap of that video in `laps.csv`), `VIDEO@SECONDS` (as `report.md`
+writes laps) or `VIDEO:best`. SESSION is a work directory or its name under `--work-root`. With no
+`--lap`, the best clean lap of `--work` is compared with the best clean lap of any session of the same
+track (the next fastest if this session holds the record). The two laps are aligned point by point
+(DTW), so the gap is known everywhere in the lap, not only at the finish. Output in
+`<work>/compare/<A>_vs_<B>/`: `compare.md` (lap table, furthest behind/ahead, where lap A loses and
+gains most, sector deltas), `gap.png`, `compare.json` and the video (1920x1080, A left / B right, both
+lap clocks from their own gate frame, gap chart with a cursor; `--audio a|b|none`, `--no-video` for the
+report only). It renders with OpenCV (about 40 s); `--renderer hyperframes` gives nicer type but took
+about 15 min for a 15 s clip. Tell the pilot the final gap and the sector or moment where most time goes; sector deltas
+match `report.md` when both laps have sector splits against the same reference lap.
+
 ## When things go wrong
 
 | Symptom | What to do |

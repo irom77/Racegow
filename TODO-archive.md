@@ -2,6 +2,35 @@
 
 Completed items moved out of [TODO.md](TODO.md), kept for the decisions and test notes. Open follow-ups from these features stay in TODO.md.
 
+## Feature: side-by-side lap comparison (done)
+
+Inspired by FPV DVR Lap Timer's "Compare two laps".
+
+- [x] `compare --lap SPEC --lap SPEC` (`compare.py`): a lap is `[SESSION/]VIDEO:N` (Nth lap of the
+  video, laps.csv order), `VIDEO@SECONDS` (lap starting nearest that time, the way report.md names
+  laps) or `VIDEO:best`. SESSION = a work directory or its name under `--work-root`; without it,
+  `--work`, else the one session that has a video of that name (ambiguous names are an error).
+- [x] Running gap: lap B's 20 Hz descriptors aligned to lap A's with the fixed-endpoint DTW from
+  sectors.py; gap = A frame - B frame at each point, smoothed 0.5 s, pinned to 0 at the gate and to
+  the lap-time difference at the finish. `compare.md`: furthest behind / ahead, where A loses and
+  gains most (1.5 s windows, with the sector), sector deltas with the gap after each sector.
+- [x] Sector deltas: both laps' own sector splits when they share a reference lap (match report.md
+  exactly), else lap A's (or lap B's mapped across), else an even split of lap A. Lap B's point at
+  each boundary snapped at 60 fps (±15 frames) and the curve bent through it.
+- [x] Default pair (no `--lap`): best clean lap of `--work` vs the best clean lap of every session
+  `history` collects for that track (track = README folder, else the batch folder's parent); the next
+  fastest when this session holds the record.
+- [x] Video, 1920x1080: label band (session, video, lap N, why picked), both laps cropped to the
+  picture side by side (A blue / B orange tags), lap clocks from each lap's own gate frame (gold when
+  finished), gap chart below with the sign-coloured area, a cursor at lap A's position and sector
+  deltas revealed as A passes each boundary. HyperFrames (`assets/compare/index.html`, audio flags set
+  in the static HTML, 1 s keyframes in the cut clips) and OpenCV. `auto` = OpenCV for compare: 41 s
+  vs 14.8 min for HyperFrames on the 15.8 s Track 2 clip. `--audio a|b|none`, `--no-video`.
+- Tested on Track 2: 2nd's best lap (13.50 s) vs 1st's best (13.73 s): A loses up to 0.30 s in S1 and
+  takes 0.5 s back in S2, finishing 0.23 s ahead. Pairwise sector times vs each lap's own splits
+  (same session): 0.05 s mean difference. `tests/test_compare.py` (synthetic laps with known
+  per-sector speeds, lap specs, default pair).
+
 ## Feature: sector splits and theoretical best (done)
 
 - [x] `--sectors N` (2-10, split the reference lap evenly; default 3, `SECTORS_DEFAULT`) or
@@ -24,6 +53,7 @@ Completed items moved out of [TODO.md](TODO.md), kept for the decisions and test
   6 fastest laps showed the same view as the reference in every row. `tests/test_sectors.py`
   (synthetic laps with known per-sector speeds).
 
+## Feature: progress across sessions and consistency stats (done)
 
 Inspired by FPV DVR Lap Timer's progress and consistency charts. No database: reads the saved
 `result.json` files.

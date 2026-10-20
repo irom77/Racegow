@@ -46,17 +46,17 @@ tool can't do this. Details in [TODO-archive.md](TODO-archive.md).
   sector highlighted, plus the theoretical best against the real best.
 - [x] Docs: SKILL.md, method.md and the README.
 
-## Feature: side-by-side lap comparison
+## Feature: side-by-side lap comparison (done)
 
 Inspired by [FPV DVR Lap Timer](https://github.com/lenuxfpv/fpv-dvr-lap-timer)'s "Compare two
-laps".
+laps". Details in [TODO-archive.md](TODO-archive.md).
 
-- [ ] `compare --lap VIDEO:LAP --lap VIDEO:LAP` (laps from the same or different sessions of a
+- [x] `compare --lap VIDEO:LAP --lap VIDEO:LAP` (laps from the same or different sessions of a
   track): render both side by side, each starting on its own gate frame, with both lap clocks.
-- [ ] Running gap at every point of the lap via DTW alignment (not only at the finish), e.g.
+- [x] Running gap at every point of the lap via DTW alignment (not only at the finish), e.g.
   "+0.4 s after the dive". Show sector deltas once sector splits exist.
-- [ ] Default pair: the best lap of this session against the best lap ever on the track.
-- [ ] Both renderers (HyperFrames and OpenCV), no audio or a single audio track.
+- [x] Default pair: the best lap of this session against the best lap ever on the track.
+- [x] Both renderers (HyperFrames and OpenCV), no audio or a single audio track.
 
 ## Feature: progress across sessions and consistency stats (done)
 
@@ -85,6 +85,11 @@ The finished features are in [TODO-archive.md](TODO-archive.md).
 - [ ] Sectors: show the sector times in the clip overlay (a split as each boundary is passed), and
   the theoretical best per session in `history`.
 - [ ] Sectors: name the boundaries in the track README (e.g. `**Sectors:** 3700 dive, 3950 cube`).
+  `compare` would then say "+0.4 s after the dive" instead of "from 5.4 s to 6.9 s (S2)".
+- [ ] Compare: make the HyperFrames render faster (14.8 min for a 15.8 s clip vs 41 s for OpenCV, so
+  `auto` uses OpenCV): e.g. pre-composite both videos into one clip and keep only the overlay in HTML.
+- [ ] Compare: a ghost view (lap B as a small picture-in-picture over lap A), and comparing best-3 runs,
+  not only single laps.
 - [ ] History: show the session dates from the date feature (`result.json`) once it exists; today
   they come from a `YYYY-MM-DD` batch folder name, the recordings' file dates or the first analysis.
 - [ ] History: lap-time spread per session (box or strip of every clean lap), and per-pack points

@@ -97,6 +97,12 @@ at frames of the reference lap (say, at a gate) and saves them in `track.json`.
 clean-lap % per session, with a table. Each session's `report.md` gets a consistency table (std dev of
 clean laps, best vs median lap, bad-lap and crash rate) and a link to the history page.
 
+**Compare two laps.** `compare --work fpvlaps-work/Track2-2nd` puts this session's best lap next to
+the best lap ever flown on the track: both videos side by side, each lap clock starting on its own gate
+frame, and a running gap underneath ("A 0.43 s ahead") that is known at every point of the lap, because
+the two laps are aligned frame by frame. `compare.md` lists the sector deltas and where the lap loses
+or gains most. Pick any two laps with `--lap SESSION/VIDEO:N --lap SESSION/VIDEO@SECONDS`.
+
 ### Use it from an AI coding agent
 
 Link the skill folder where your agent looks for skills:
@@ -205,7 +211,7 @@ Racegow/
 ├── skills/fpv-best-laps/      ← the product: agent skill + CLI (start here)
 │   ├── SKILL.md               agent instructions
 │   ├── README.md              full architecture and usage
-│   ├── scripts/fpvlaps.py     CLI: doctor · run · extract · analyze · render · save-track · verify · history
+│   ├── scripts/fpvlaps.py     CLI: doctor · run · extract · analyze · render · save-track · verify · history · compare
 │   ├── scripts/fpvlaps/       pipeline package
 │   ├── references/method.md   detailed method and tunables
 │   ├── tests/                 unit tests (python -m unittest discover -s skills/fpv-best-laps/tests)
