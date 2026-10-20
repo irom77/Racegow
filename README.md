@@ -86,6 +86,11 @@ is one, otherwise against the README's correct lap (which can be in another sess
 without `--force`. Template: [`track-README-template.md`](skills/fpv-best-laps/assets/track-README-template.md).
 Without a track README, reuse a profile with `--track <work>/track.json`.
 
+**See your progress.** `history --track Track2/` collects every analysed session of the track from
+`fpvlaps-work/*/result.json` and writes `Track2/history.html`: best lap, median clean lap, best 3 and
+clean-lap % per session, with a table. Each session's `report.md` gets a consistency table (std dev of
+clean laps, best vs median lap, bad-lap and crash rate) and a link to the history page.
+
 ### Use it from an AI coding agent
 
 Link the skill folder where your agent looks for skills:
@@ -194,7 +199,7 @@ Racegow/
 ├── skills/fpv-best-laps/      ← the product: agent skill + CLI (start here)
 │   ├── SKILL.md               agent instructions
 │   ├── README.md              full architecture and usage
-│   ├── scripts/fpvlaps.py     CLI: doctor · run · extract · analyze · render · save-track · verify
+│   ├── scripts/fpvlaps.py     CLI: doctor · run · extract · analyze · render · save-track · verify · history
 │   ├── scripts/fpvlaps/       pipeline package
 │   ├── references/method.md   detailed method and tunables
 │   ├── tests/                 unit tests (python -m unittest discover -s skills/fpv-best-laps/tests)

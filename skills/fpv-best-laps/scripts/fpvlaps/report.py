@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import numpy as np
 import cv2
+from .history import consistency_lines, history_link_for, link_block
 from .media import read_frames
 
 OFFSETS = list(range(-24, 13, 6))   # frames around a crossing shown in the sheets
@@ -101,7 +102,8 @@ def write_reports(work, R, log=print):
                          + (" ⚠ check" if r.get("warnings") else ""))
     else:
         lines += ["## No result", "", "No video contains 3 consecutive clean laps."]
-    lines += ["", "## Session summary", "",
+    lines += [""] + consistency_lines(R)
+    lines += ["## Session summary", "",
               f"- Lap period (track): {R['lap_period_s']:.2f}s; typical clean lap {R['typical_lap_s']:.2f}s; "
               f"clean laps: {len(clean)} of {len(R['laps'])}; back-to-back laps chained: {R.get('chain_ratio', 1.0):.0%}",
               f"- Reference lap: `{ref['video']}` frames {ref['start']} -> {ref['end']} ({ref['source']})",
@@ -114,6 +116,7 @@ def write_reports(work, R, log=print):
         lines.append(f"| {v['name']} | {len(L)} | {len(C)} | {fastest} | {v['arm_source']} |")
     lines += ["", "Verification sheets: `sheets/reference_lap.jpg`, `sheets/rank1_crossings.jpg` .. `rank3_crossings.jpg`",
               "Every lap: `laps.csv`."]
+    lines += [""] + link_block(history_link_for(R))
     (work / "report.md").write_text("\n".join(lines) + "\n")
     log(f"  report: {work / 'report.md'}")
     for w in R.get("warnings", []):

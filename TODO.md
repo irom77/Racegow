@@ -58,15 +58,14 @@ laps".
 - [ ] Default pair: the best lap of this session against the best lap ever on the track.
 - [ ] Both renderers (HyperFrames and OpenCV), no audio or a single audio track.
 
-## Feature: progress across sessions and consistency stats
+## Feature: progress across sessions and consistency stats (done)
 
 Inspired by FPV DVR Lap Timer's progress and consistency charts. No database: read the saved
-`result.json` files.
+`result.json` files. Details in [TODO-archive.md](TODO-archive.md).
 
-- [ ] `history --track TrackN`: collect every session's `result.json` for the track and chart best
-  lap, best 3, median clean lap and clean-lap % over time (static HTML or PNG, linked from
-  `report.md`).
-- [ ] Consistency in `report.md`: standard deviation of clean laps, gap between best and median
+- [x] `history --track TrackN`: collect every session's `result.json` for the track and chart best
+  lap, best 3, median clean lap and clean-lap % over time (static HTML, linked from `report.md`).
+- [x] Consistency in `report.md`: standard deviation of clean laps, gap between best and median
   lap, crash/bad-lap rate.
 
 ## Smaller ideas from FPV DVR Lap Timer
@@ -83,6 +82,10 @@ Inspired by FPV DVR Lap Timer's progress and consistency charts. No database: re
 
 The finished features are in [TODO-archive.md](TODO-archive.md).
 
+- [ ] History: show the session dates from the date feature (`result.json`) once it exists; today
+  they come from a `YYYY-MM-DD` batch folder name, the recordings' file dates or the first analysis.
+- [ ] History: lap-time spread per session (box or strip of every clean lap), and per-pack points
+  within a session.
 - [ ] Background music: `--music-seed N` to re-create a generated track the pilot liked.
 - [ ] YouTube upload skill: craft name from the OSD instead of the `--quad` default (Air65).
 - [ ] Verify: a variable-frame-rate upload (the CFR re-encode is untested on real VFR footage).

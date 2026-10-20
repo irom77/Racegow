@@ -2,6 +2,28 @@
 
 Completed items moved out of [TODO.md](TODO.md), kept for the decisions and test notes. Open follow-ups from these features stay in TODO.md.
 
+## Feature: progress across sessions and consistency stats (done)
+
+Inspired by FPV DVR Lap Timer's progress and consistency charts. No database: reads the saved
+`result.json` files.
+
+- [x] `history --track TRACK_DIR|NAME` (`history.py`): sessions = `<work-root>/*/result.json`
+  (default `./fpvlaps-work`; nested folders such as old experiments are skipped). A session belongs to
+  the track when its batch folder, track README or profile is inside the track folder, or a folder in
+  its path is named after the track (`Track2`, `Track2-1st`, not `Track20`): older result.json files
+  have no `track_readme`, and some batches were analysed through a symlink folder. The same footage
+  analysed twice (same video names + durations) counts once, newest run kept.
+- [x] Session date: `YYYY-MM-DD` in the batch folder name, else the median file date of the
+  recordings (HDZero has no clock but the SD card copy keeps the file times; dates before 2015
+  ignored), else the first analysis.
+- [x] `history.html`: self-contained, inline SVG small multiples (lap time: best + median clean lap;
+  best 3; clean-lap %), one point per session evenly spaced, hover titles, a table view, light and
+  dark mode. Plus `history.json`. Written to the track folder by default (`--out`), and linked from
+  every session's `report.md` between `<!-- history -->` markers (refreshed in place).
+- [x] `report.md` **Consistency** table: clean laps, std dev and median of clean laps, best to median
+  gap, bad-lap rate (every rejected lap) and crashes (laps disarmed or stopped before the finish).
+- Tested on Track 1 (Air65_2) and Track 2 (1st, 2nd); `tests/test_history.py`.
+
 ## Feature: verify a run from a YouTube URL (done)
 
 Let a pilot (or race organiser) point the tool at a YouTube video and get the 3-lap time and lap

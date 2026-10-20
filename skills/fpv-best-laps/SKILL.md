@@ -127,6 +127,9 @@ video (from `report.md`, which lists frames and video times for every rank). Giv
 and explain the rejected one separately. Say plainly whether you verified the sheets. Lap
 times are accurate to about ±2-3 frames (±0.05 s at 60 fps).
 
+`report.md` also has a **Consistency** table (std dev of clean laps, best vs median lap, bad-lap and
+crash rate). Mention it when the pilot asks how consistent the session was.
+
 ## Verify a run from a YouTube URL (optional)
 
 When someone gives a YouTube link instead of a folder (e.g. to check a leaderboard submission), use
@@ -197,6 +200,21 @@ keeps the old one as `.bak`. Ask the pilot before using `--force`. Without a tra
 `--track <old work>/track.json` to skip calibration and time laps against the same reference. This is
 also more reliable when the new folder holds only 2-3 videos, since a profile built from a bigger
 session is steadier. A new layout needs a fresh calibration: just run without `--track`.
+
+## Progress across sessions
+
+When the pilot asks how they're improving on a track, chart every analysed session of it:
+
+```bash
+.fpvlaps-venv/bin/python <skill-dir>/scripts/fpvlaps.py history --track "<track folder>"   # or --track Track2
+```
+
+It reads `<work-root>/*/result.json` (default `./fpvlaps-work`, change with `--work-root`), keeps the
+sessions whose batch folder, track README or profile is inside the track folder, or whose path has a
+folder named after the track, and writes `history.html` (best lap, best 3, median clean lap, clean-lap %
+per session, plus a table) and `history.json` into the track folder (`--out DIR` to change), and links
+it from each session's `report.md`. Session dates come from a `YYYY-MM-DD` batch folder name, else the
+recordings' file dates, else the first analysis. Report the trend from the table in a few lines.
 
 ## When things go wrong
 

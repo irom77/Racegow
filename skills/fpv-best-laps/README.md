@@ -40,7 +40,7 @@ A single run over a folder produces:
 | Output | What it is |
 |---|---|
 | `export/best3_laps_<video>_<total>s.mp4` | Frame-accurate cut of the winning 3 laps (1 s padding each side, original audio), with a left-aligned overlay: a live lap clock, lap 1/2/3 times and the total. |
-| `report.md` | The result table, the top-5 runners-up with source frames and timestamps, warnings, and a per-video summary. |
+| `report.md` | The result table, the top-5 runners-up with source frames and timestamps, warnings, a consistency table (std dev of clean laps, best vs median lap, bad-lap and crash rate) and a per-video summary. |
 | `laps.csv` | Every lap detected in every video, marked clean or rejected, with the reason. |
 | `sheets/*.jpg` | Contact sheets of the gate crossings, so a person (or an agent that can view images) can confirm the timing line is in the right place. |
 | `track.json` + `track.npz` | The learned track profile. Reuse it for later sessions on the same layout. |
@@ -158,6 +158,7 @@ $PY $CLI run     --videos /path/to/videos                 # everything, no verif
 $PY $CLI analyze --videos /path/to/videos --work ./w      # extract + analyze only
 $PY $CLI render  --work ./w --rank 1                      # export a verified rank
 $PY $CLI save-track --work ./w                            # keep a verified profile next to the track README
+$PY $CLI history --track /path/to/Track2                  # progress chart over every analysed session
 ```
 
 **Track folder layout.** Keep one folder per track with a `README.md` and one subfolder per session:
@@ -182,12 +183,15 @@ to check the winning laps against. Template: [`assets/track-README-template.md`]
 | `render` | Cuts and overlays one ranked result. |
 | `run` | `analyze` + `render` in one go. |
 | `save-track` | Copies a verified run's `track.json` + `track.npz` next to the track README (`--to DIR` otherwise). Won't replace an existing profile without `--force` (old one kept as `.bak`). |
+| `history` | Progress across sessions: reads every `<work-root>/*/result.json` of the track (`--track` = track folder or name, e.g. `Track2`) and writes `history.html` + `history.json` (best lap, best 3, median clean lap, clean-lap % per session) into the track folder, linked from each session's `report.md`. The same footage analysed twice counts once. |
 
 | Option | Default | Meaning |
 |---|---|---|
 | `--videos DIR` | – | Folder of recordings (`.mp4 .mov .mkv .avi .ts .m4v`), one session per file. Under WSL use `/mnt/c/...`. |
 | `--work DIR` | `./fpvlaps-work/<folder name>` | Cache and output folder. |
-| `--track PROFILE.json` | – | Reuse a saved track profile instead of calibrating. |
+| `--track PROFILE.json` | – | Reuse a saved track profile instead of calibrating. With `history`: the track folder or name. |
+| `--work-root DIR` | `./fpvlaps-work` | `history`: folder holding one work directory per session. |
+| `--out DIR` | the track folder | `history`: where to write `history.html` / `history.json`. |
 | `--anchor VIDEO:FRAME` | – | Manual start-gate crossing, e.g. `hdz_0024:1596`. Overrides auto calibration. |
 | `--readme FILE` | `README.md` in `--videos` or its parent | Track README with the demo link and the reference lap. |
 | `--no-readme` | – | Ignore the track README (reference from `--track`/`--anchor` or auto calibration only). |
@@ -344,6 +348,7 @@ flowchart TB
 | `analyze.py` | Runs calibration and detection, applies the clean rules, builds and ranks 3-lap windows, writes `result.json`. |
 | `report.py` | Human-readable report, CSV, verification contact sheets. |
 | `render.py` | Plans the clip, cuts it, draws the overlay with HyperFrames or OpenCV. |
+| `history.py` | Progress across sessions (`history`): collects a track's `result.json` files, writes `history.html` / `history.json`; the consistency stats in `report.md`. |
 | `doctor.py` | Dependency and renderer check. |
 | `youtube.py`, `verify.py` | Optional YouTube run check (download, claim check, `verify.md`). |
 
@@ -694,6 +699,7 @@ fpv-best-laps/
 ├── tests/
 │   ├── test_trackdir.py         # python -m unittest discover -s tests
 │   ├── test_osd.py
+│   ├── test_history.py
 │   └── test_verify.py
 └── evals/
     └── evals.json               # test prompts for skill evaluation

@@ -11,6 +11,7 @@ the clip with a left-aligned lap-time overlay.
   python fpvlaps.py verify   (--url YOUTUBE_URL | --videos DIR) [--claim 30.82 | --claim 10.27,10.33,10.22]
                              [--start h:mm:ss] [--end h:mm:ss] [--tolerance 0.05] [--track PROFILE.json]
   python fpvlaps.py save-track --work DIR [--to TRACK_DIR] [--force]
+  python fpvlaps.py history  --track TRACK_DIR|NAME [--work-root DIR] [--out DIR]
   python fpvlaps.py render   --work DIR [--rank 1] [--renderer auto|hyperframes|opencv]
                              [--background blur|black] [--blur-strength 40]
                              [--music FILE|auto] [--music-volume -10]
@@ -26,7 +27,10 @@ its profile next to the README for later batches. See fpvlaps/trackdir.py for th
 YouTube (optional, needs yt-dlp): `--url` replaces `--videos` on run/extract/analyze/verify. The video is
 downloaded to <work>/source/ (default work ./fpvlaps-work/yt_<id>) and analysed as a one-video batch.
 `verify` = extract + analyze + check a claimed result (`--claim`), written to <work>/verify.md. Only
-analyse videos you own or have permission to use."""
+analyse videos you own or have permission to use.
+
+`history` charts best lap, best 3, median clean lap and clean-lap % over every analysed session of a
+track (the result.json files under --work-root) into history.html; see fpvlaps/history.py."""
 import argparse
 import sys
 from pathlib import Path
@@ -40,7 +44,7 @@ def default_work(videos):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("command", choices=["doctor", "run", "extract", "analyze", "render", "save-track", "verify"])
+    ap.add_argument("command", choices=["doctor", "run", "extract", "analyze", "render", "save-track", "verify", "history"])
     ap.add_argument("--videos", help="folder of FPV recordings (one session per file)")
     ap.add_argument("--url", help="YouTube video to analyse instead of --videos (downloaded with yt-dlp)")
     ap.add_argument("--start", help="with --url: analyse from this time in the video (h:mm:ss, m:ss or seconds)")
@@ -50,7 +54,11 @@ def main():
     ap.add_argument("--tolerance", type=float, help="verify: allowed difference per lap in seconds "
                                                     "(default 3 frames: 0.05 s at 60 fps, 0.10 s at 30 fps)")
     ap.add_argument("--work", help="cache/output folder (default ./fpvlaps-work/<videos folder name>)")
-    ap.add_argument("--track", help="track profile JSON to reuse (skips gate calibration)")
+    ap.add_argument("--track", help="track profile JSON to reuse (skips gate calibration); "
+                                    "history: the track folder or its name (e.g. Track2)")
+    ap.add_argument("--work-root", default="fpvlaps-work",
+                    help="history: folder holding one work directory per session (default ./fpvlaps-work)")
+    ap.add_argument("--out", help="history: folder for history.html (default: the track folder)")
     ap.add_argument("--anchor", help="manual start-gate crossing VIDEO:FRAME (overrides auto calibration)")
     ap.add_argument("--readme", help="track README to use (default: README.md in --videos or its parent)")
     ap.add_argument("--no-readme", action="store_true", help="ignore the track README")
@@ -79,6 +87,13 @@ def main():
         if not a.work:
             ap.error("--work is required")
         save_track(a.work, a.to, a.force)
+        return
+
+    if a.command == "history":
+        from fpvlaps.history import write_history
+        if not a.track:
+            ap.error("--track is required (track folder or name)")
+        write_history(a.track, a.work_root, a.out)
         return
 
     needs_input = a.command in ("run", "extract", "analyze", "verify")
