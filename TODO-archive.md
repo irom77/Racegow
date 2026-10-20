@@ -2,7 +2,28 @@
 
 Completed items moved out of [TODO.md](TODO.md), kept for the decisions and test notes. Open follow-ups from these features stay in TODO.md.
 
-## Feature: progress across sessions and consistency stats (done)
+## Feature: sector splits and theoretical best (done)
+
+- [x] `--sectors N` (2-10, split the reference lap evenly; default 3, `SECTORS_DEFAULT`) or
+  `--sectors F1,F2,...` (reference-video frames, strictly inside the reference lap). Frames are saved
+  as `sectors` in the track profile: `<work>/track.json`, or the `--track` / track-folder
+  `track.json` when one is reused, so later batches split the same way.
+- [x] Mapping (`sectors.py`): fixed-endpoint DTW of each clean lap against the reference lap at 20 Hz,
+  steps (1,1), (1,2), (2,1), with backpointers; a boundary goes to the mean lap step aligned to its
+  reference step. Then snapped to the exact frame (±9 frames, `SECTOR_REFINE_SEARCH`) against a
+  consensus ±0.5 s window from the ~40 best-matching clean laps (`refine` got a `search` argument).
+  Proportional fallback when the length ratio is outside 0.5-2x; laps whose boundaries come out of
+  order get no sectors.
+- [x] `result.json`: `sectors` (count, boundaries, source, best, best_lap, median, theoretical_best,
+  best_real_lap) and per lap `sectors` (seconds) + `sector_frames`. `report.md`: sector table of the
+  10 fastest clean laps plus the best-3 laps (★), best per sector in bold, median and best-sector
+  rows, theoretical best vs best lap, where each best sector came from, and the sector where the
+  best-3 laps lose most time. `sheets/sectors.jpg`: the reference view at each boundary.
+- Tested on Track 2 batch 2nd: 48/48 clean laps timed; theoretical best 12.83 s (3 even sectors) /
+  12.88 s (4 sectors at 3700, 3950, 4150) vs best lap 13.50 s. A sheet of the mapped boundaries of the
+  6 fastest laps showed the same view as the reference in every row. `tests/test_sectors.py`
+  (synthetic laps with known per-sector speeds).
+
 
 Inspired by FPV DVR Lap Timer's progress and consistency charts. No database: reads the saved
 `result.json` files.

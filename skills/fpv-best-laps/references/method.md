@@ -67,6 +67,17 @@ track that starts parked at the gate".
    A winning window with a lap more than 10% faster than typical gets a **warning** in `report.md`,
    which means check the crossings sheet before trusting it.
 6. **Best window**: every run of 3 clean laps that share crossings, ranked by total.
+6b. **Sector splits** (`sectors.py`): the reference lap is split into sectors, evenly (3 by default,
+   `--sectors N`) or at reference-video frames (`--sectors F1,F2,...`, saved as `sectors` in
+   `track.json`, so later batches use the same splits). Each clean lap is aligned to the reference lap
+   with a fixed-endpoint DTW at 20 Hz (steps (1,1), (1,2), (2,1)), and each boundary is carried along
+   the alignment path into the lap. It is then snapped to the exact frame (±9 frames) against the
+   consensus view of that boundary: the mean ±0.5 s window over the mapped boundaries of the ~40
+   best-matching clean laps, as for gate crossings. A lap whose boundaries come out of order gets no
+   sectors. The **theoretical best** is the sum of the best time in each sector over all clean laps.
+   Measured on Track 2 batch 2nd: 48 of 48 clean laps timed, theoretical best 12.83 s vs best lap
+   13.50 s; the mapped boundaries showed the same view in every lap checked. Mid-lap points are less
+   distinctive than the start gate, so a sector time is good to about ±3-5 frames, not ±2.
 7. **Render** (`render.py`): ffmpeg cuts the clip frame-accurately and, in the same pass, fills
    black side bars with a blurred, dimmed copy of the picture (`active_area`, `blur_filter`;
    `--background black` turns it off). With `--music`, a last ffmpeg pass mixes a track (a file, or one
@@ -127,6 +138,8 @@ profile can't be detected and still yields "laps". Use a profile only for the pi
 | `CHAIN_MIN` | 0.7 | Chaining warning on a correct reference (lower) |
 | `MAX_REFERENCE_TRIES` | 6 | More reference candidates to try before warning |
 | `OSD_WHITE` | 190 | OSD glyphs darker or greyer than usual |
+| `SECTORS_DEFAULT` | 3 | More or fewer sectors by default (`--sectors N` per run) |
+| `SECTOR_REFINE_SEARCH` | 9 | How far (frames) a mapped sector boundary may move when snapped to the consensus view |
 
 `LAPS_PER_RESULT = 3` is a race rule, not a tunable.
 

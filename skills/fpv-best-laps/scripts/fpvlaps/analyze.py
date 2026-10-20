@@ -11,6 +11,7 @@ from .config import (OCR_STEP, DTW_CANDIDATE_COST, CLEAN_COST_MIN, CLEAN_COST_MA
 from .extract import load
 from .laps import fine_desc, dtw_desc, lap_matches, refine, stalled, window
 from .report import write_reports
+from . import sectors as sectors_mod
 
 
 def flight_segments_from_motion(motion, fps):
@@ -263,9 +264,10 @@ def track_readme_info(readme):
                 demo_link=demo_link(info), reference=readme.get("how"))
 
 
-def analyze(work, names, track=None, anchor=None, videos_dir=None, correct_lap=None, readme=None, log=print):
+def analyze(work, names, track=None, anchor=None, videos_dir=None, correct_lap=None, readme=None, sectors=None,
+            log=print):
     """`readme`: what trackdir.choose_reference found (README path, demo, how the reference was chosen),
-    recorded in result.json and report.md."""
+    recorded in result.json and report.md. `sectors`: the --sectors spec (count or reference frames)."""
     vids = load_all(work, names, log)
     pool = vids                                # videos the reference lap may come from
     fps = vids[0]["fps"]
@@ -314,11 +316,19 @@ def analyze(work, names, track=None, anchor=None, videos_dir=None, correct_lap=N
     problems = reference_problems(typical, chain, P)
     if problems:
         warnings.append(reference_warning(ref, problems))
+    if sectors is not None and sectors_mod.parse_spec(sectors)[0] == "frames":
+        ref["sectors"] = sectors_mod.boundaries(ref, sectors)[0]
+        if track:                              # kept with the profile, so later batches use the same sectors
+            prof = json.loads(Path(track).read_text())
+            prof["sectors"] = ref["sectors"]
+            Path(track).write_text(json.dumps(prof, indent=1))
+            log(f"  sector boundaries {ref['sectors']} saved in {track}")
     if not track:
         rv = next(v for v in pool if v["name"] == ref["video"])
         ref["path"], ref["pic_box"], ref["fps"] = rv["video"], rv["pic_box"], rv["fps"]
         save_profile(work, ref, T, wins)
 
+    sector_info = sectors_mod.split(vids, all_laps, ref, T, sectors, log)
     windows = best_windows(all_laps)
     for w in windows:                          # flag windows that need a human/agent look before trusting
         w["warnings"] = [f"lap {i + 1} ({l['time']:.2f}s) is >10% faster than the typical {typical:.2f}s lap: "
@@ -332,7 +342,7 @@ def analyze(work, names, track=None, anchor=None, videos_dir=None, correct_lap=N
                   reference=ref, videos=[dict(name=v["name"], path=v["video"], seconds=v["n"] / v["fps"],
                                                armed_segments=v["segments"], arm_source=v["arm_source"])
                                           for v in vids],
-                  laps=all_laps, best=windows)
+                  laps=all_laps, best=windows, sectors=sector_info)
     (Path(work) / "result.json").write_text(json.dumps(result, indent=1))
     write_reports(work, result, log)
     return result

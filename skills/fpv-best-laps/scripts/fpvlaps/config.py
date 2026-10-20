@@ -37,3 +37,8 @@ MAX_REFERENCE_TRIES = 6                       # auto calibration: reference cand
 PERIOD_RANGE_S = (5.0, 30.0)                  # plausible lap periods for whoop tracks
 REFINE_WINDOW = list(range(-30, 31, 3))       # frames around a crossing used for 60 fps alignment
 REFINE_SEARCH = 45                            # +- frames searched around a DTW boundary
+
+# ---- sector splits ---------------------------------------------------------
+SECTORS_DEFAULT = 3                           # reference lap split evenly into this many sectors
+SECTOR_REFINE_SEARCH = 9                      # +- frames a DTW-mapped sector boundary may move when
+                                              # snapped to the consensus view of that point

@@ -40,9 +40,9 @@ A single run over a folder produces:
 | Output | What it is |
 |---|---|
 | `export/best3_laps_<video>_<total>s.mp4` | Frame-accurate cut of the winning 3 laps (1 s padding each side, original audio), with a left-aligned overlay: a live lap clock, lap 1/2/3 times and the total. |
-| `report.md` | The result table, the top-5 runners-up with source frames and timestamps, warnings, a consistency table (std dev of clean laps, best vs median lap, bad-lap and crash rate) and a per-video summary. |
+| `report.md` | The result table, the top-5 runners-up with source frames and timestamps, warnings, sector splits with the theoretical best lap, a consistency table (std dev of clean laps, best vs median lap, bad-lap and crash rate) and a per-video summary. |
 | `laps.csv` | Every lap detected in every video, marked clean or rejected, with the reason. |
-| `sheets/*.jpg` | Contact sheets of the gate crossings, so a person (or an agent that can view images) can confirm the timing line is in the right place. |
+| `sheets/*.jpg` | Contact sheets of the gate crossings, so a person (or an agent that can view images) can confirm the timing line is in the right place; `sectors.jpg` shows where each sector starts. |
 | `track.json` + `track.npz` | The learned track profile. Reuse it for later sessions on the same layout. |
 
 Example `report.md` result, from 11 HDZero recordings of RaceGOW6 Track 1 (36 min of footage):
@@ -193,6 +193,7 @@ to check the winning laps against. Template: [`assets/track-README-template.md`]
 | `--work-root DIR` | `./fpvlaps-work` | `history`: folder holding one work directory per session. |
 | `--out DIR` | the track folder | `history`: where to write `history.html` / `history.json`. |
 | `--anchor VIDEO:FRAME` | – | Manual start-gate crossing, e.g. `hdz_0024:1596`. Overrides auto calibration. |
+| `--sectors N` or `F1,F2,...` | 3 | Sector splits: split the reference lap evenly into N sectors, or at these reference-video frames (saved in `track.json` and reused). |
 | `--readme FILE` | `README.md` in `--videos` or its parent | Track README with the demo link and the reference lap. |
 | `--no-readme` | – | Ignore the track README (reference from `--track`/`--anchor` or auto calibration only). |
 | `--workers N` | cores / 3 | Videos decoded in parallel during extraction. |
@@ -348,6 +349,7 @@ flowchart TB
 | `analyze.py` | Runs calibration and detection, applies the clean rules, builds and ranks 3-lap windows, writes `result.json`. |
 | `report.py` | Human-readable report, CSV, verification contact sheets. |
 | `render.py` | Plans the clip, cuts it, draws the overlay with HyperFrames or OpenCV. |
+| `sectors.py` | Sector splits: maps sector boundaries from the reference lap into every clean lap along the DTW path, theoretical best, the `report.md` sector table. |
 | `history.py` | Progress across sessions (`history`): collects a track's `result.json` files, writes `history.html` / `history.json`; the consistency stats in `report.md`. |
 | `doctor.py` | Dependency and renderer check. |
 | `youtube.py`, `verify.py` | Optional YouTube run check (download, claim check, `verify.md`). |
@@ -584,7 +586,8 @@ afterwards, and `render_rankN.json` records what was rendered.
 ├── laps.csv                     # every lap: frames, seconds, cost, clean, reason
 ├── sheets/
 │   ├── reference_lap.jpg        # start + end crossing of the reference lap
-│   └── rank1..3_crossings.jpg   # the 4 crossings of each top window
+│   ├── rank1..3_crossings.jpg   # the 4 crossings of each top window
+│   └── sectors.jpg              # the reference lap's view at each sector boundary
 └── export/
     ├── best3_laps_<video>_<total>s.mp4
     └── render_rank<N>.json
@@ -700,6 +703,7 @@ fpv-best-laps/
 │   ├── test_trackdir.py         # python -m unittest discover -s tests
 │   ├── test_osd.py
 │   ├── test_history.py
+│   ├── test_sectors.py
 │   └── test_verify.py
 └── evals/
     └── evals.json               # test prompts for skill evaluation

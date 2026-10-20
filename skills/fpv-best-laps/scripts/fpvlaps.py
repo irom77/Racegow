@@ -4,7 +4,7 @@ the clip with a left-aligned lap-time overlay.
 
   python fpvlaps.py doctor
   python fpvlaps.py run      --videos DIR [--work DIR] [--track PROFILE.json] [--anchor VIDEO:FRAME]
-                             [--readme FILE | --no-readme]
+                             [--readme FILE | --no-readme] [--sectors 3 | --sectors F1,F2,...]
   python fpvlaps.py extract  --videos DIR [--work DIR]
   python fpvlaps.py analyze  --videos DIR [--work DIR] [--track PROFILE.json] [--anchor VIDEO:FRAME]
                              [--readme FILE | --no-readme]
@@ -59,6 +59,8 @@ def main():
     ap.add_argument("--work-root", default="fpvlaps-work",
                     help="history: folder holding one work directory per session (default ./fpvlaps-work)")
     ap.add_argument("--out", help="history: folder for history.html (default: the track folder)")
+    ap.add_argument("--sectors", help="sector splits: a count (split the reference lap evenly, default 3) or "
+                                      "reference-lap frames F1,F2,... (saved in track.json)")
     ap.add_argument("--anchor", help="manual start-gate crossing VIDEO:FRAME (overrides auto calibration)")
     ap.add_argument("--readme", help="track README to use (default: README.md in --videos or its parent)")
     ap.add_argument("--no-readme", action="store_true", help="ignore the track README")
@@ -129,7 +131,7 @@ def main():
         print(f"  reference: {ch['how']}")
         try:
             analyze(work, [v.stem for v in videos], track=ch["track"], anchor=ch["anchor"], videos_dir=a.videos,
-                    correct_lap=ch["correct_lap"], readme=ch)
+                    correct_lap=ch["correct_lap"], readme=ch, sectors=a.sectors)
         except RuntimeError as e:
             if a.command != "verify":
                 raise

@@ -86,6 +86,12 @@ is one, otherwise against the README's correct lap (which can be in another sess
 without `--force`. Template: [`track-README-template.md`](skills/fpv-best-laps/assets/track-README-template.md).
 Without a track README, reuse a profile with `--track <work>/track.json`.
 
+**Find where laps are won or lost.** Every clean lap is also timed in sectors (the reference lap
+split evenly into 3 by default). `report.md` shows the sector times of the fastest laps, the best time
+in each sector, the **theoretical best** lap made of those best sectors, and the sector where your
+best-3 laps lose most time. `--sectors 4` changes the count; `--sectors F1,F2,...` puts the boundaries
+at frames of the reference lap (say, at a gate) and saves them in `track.json`.
+
 **See your progress.** `history --track Track2/` collects every analysed session of the track from
 `fpvlaps-work/*/result.json` and writes `Track2/history.html`: best lap, median clean lap, best 3 and
 clean-lap % per session, with a table. Each session's `report.md` gets a consistency table (std dev of

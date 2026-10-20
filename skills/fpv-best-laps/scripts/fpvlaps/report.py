@@ -6,6 +6,7 @@ import numpy as np
 import cv2
 from .history import consistency_lines, history_link_for, link_block
 from .media import read_frames
+from .sectors import sector_lines
 
 OFFSETS = list(range(-24, 13, 6))   # frames around a crossing shown in the sheets
 
@@ -58,6 +59,10 @@ def write_reports(work, R, log=print):
     if ref_path and ref_box and Path(ref_path).exists():
         crossing_sheet(ref_path, ref_box, [ref["start"], ref["end"]], sheets / "reference_lap.jpg",
                        f"Reference lap {ref['video']}: rows = start / end crossing (X). Both rows should show the same spot at the start gate.")
+        if R.get("sectors"):
+            crossing_sheet(ref_path, ref_box, R["sectors"]["boundaries"], sheets / "sectors.jpg",
+                           f"Sector boundaries in the reference lap {ref['video']}: one row per boundary (X) = "
+                           "start of S2, S3, ...")
     else:
         log(f"  reference video {ref['video']} not available; skipping reference_lap.jpg")
     for k, b in enumerate(R["best"][:3], 1):
@@ -102,7 +107,7 @@ def write_reports(work, R, log=print):
                          + (" ⚠ check" if r.get("warnings") else ""))
     else:
         lines += ["## No result", "", "No video contains 3 consecutive clean laps."]
-    lines += [""] + consistency_lines(R)
+    lines += [""] + sector_lines(R) + consistency_lines(R)
     lines += ["## Session summary", "",
               f"- Lap period (track): {R['lap_period_s']:.2f}s; typical clean lap {R['typical_lap_s']:.2f}s; "
               f"clean laps: {len(clean)} of {len(R['laps'])}; back-to-back laps chained: {R.get('chain_ratio', 1.0):.0%}",

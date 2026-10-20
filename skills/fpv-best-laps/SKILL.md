@@ -56,7 +56,13 @@ used when you report.
   `<work>/features/`. A re-run (e.g. with `--anchor`) skips extraction but still spends 1-3 min on
   calibration and lap matching. Run it in the
   background if your agent supports that, and tell the user roughly how long it takes.
-- Output in `<work>`: `report.md` (result + runners-up + per-video summary), `laps.csv` (every lap
+- **Sector splits**: every clean lap is also timed in sectors (3 even splits of the reference lap by
+  default; `--sectors 4` for another count, `--sectors F1,F2,...` for boundaries at reference-lap
+  frames, saved in the track profile). `report.md` lists the fastest laps' sectors, the best per sector,
+  the theoretical best lap and where the best-3 laps lose most time; `sheets/sectors.jpg` shows each
+  boundary's view. If the pilot wants splits at real track features (a gate, the dive), pick frames
+  from the reference lap and re-run `analyze` with `--sectors`.
+- Output in `<work>`: `report.md` (result + runners-up + sector splits + per-video summary), `laps.csv` (every lap
   with clean/reason), `result.json`, `track.json` (reusable track profile), `sheets/*.jpg`.
 
 ### 3. Verify before exporting
@@ -128,7 +134,8 @@ and explain the rejected one separately. Say plainly whether you verified the sh
 times are accurate to about ±2-3 frames (±0.05 s at 60 fps).
 
 `report.md` also has a **Consistency** table (std dev of clean laps, best vs median lap, bad-lap and
-crash rate). Mention it when the pilot asks how consistent the session was.
+crash rate). Mention it when the pilot asks how consistent the session was. When there are sector splits, add the
+theoretical best and the sector where the best-3 laps lose most time.
 
 ## Verify a run from a YouTube URL (optional)
 

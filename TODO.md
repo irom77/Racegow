@@ -32,19 +32,19 @@ sounds different and calls what actually happened. Can be used alone or on top o
   `<work>/export/commentary.txt` so it can be reviewed or edited and re-rendered.
 - [ ] Docs: SKILL.md render step and README options table.
 
-## Feature: sector splits and theoretical best
+## Feature: sector splits and theoretical best (done)
 
 Time each section of every clean lap, so the pilot sees where a lap is won or lost. Only possible
 because every lap is already aligned to the reference lap (subsequence DTW); a manual gate-marking
-tool can't do this.
+tool can't do this. Details in [TODO-archive.md](TODO-archive.md).
 
-- [ ] Split the reference lap into 3-4 sectors: evenly by default, or at frames given with
+- [x] Split the reference lap into 3-4 sectors: evenly by default, or at frames given with
   `--sectors F1,F2,...` and saved in `track.json`.
-- [ ] Map each sector boundary into every clean lap through the DTW path and time each sector.
-- [ ] Per-sector best, and the theoretical best lap made of those best sectors.
-- [ ] `result.json`: per-lap sector times. `report.md`: a sector table with the best in each
+- [x] Map each sector boundary into every clean lap through the DTW path and time each sector.
+- [x] Per-sector best, and the theoretical best lap made of those best sectors.
+- [x] `result.json`: per-lap sector times. `report.md`: a sector table with the best in each
   sector highlighted, plus the theoretical best against the real best.
-- [ ] Docs: SKILL.md, method.md and the README.
+- [x] Docs: SKILL.md, method.md and the README.
 
 ## Feature: side-by-side lap comparison
 
@@ -82,6 +82,9 @@ Inspired by FPV DVR Lap Timer's progress and consistency charts. No database: re
 
 The finished features are in [TODO-archive.md](TODO-archive.md).
 
+- [ ] Sectors: show the sector times in the clip overlay (a split as each boundary is passed), and
+  the theoretical best per session in `history`.
+- [ ] Sectors: name the boundaries in the track README (e.g. `**Sectors:** 3700 dive, 3950 cube`).
 - [ ] History: show the session dates from the date feature (`result.json`) once it exists; today
   they come from a `YYYY-MM-DD` batch folder name, the recordings' file dates or the first analysis.
 - [ ] History: lap-time spread per session (box or strip of every clean lap), and per-pack points

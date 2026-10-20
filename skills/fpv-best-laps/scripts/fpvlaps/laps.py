@@ -104,13 +104,13 @@ def window(F, c):
     return F[idx]
 
 
-def refine(F, approx, refs):
+def refine(F, approx, refs, search=REFINE_SEARCH):
     """Exact crossing frame near `approx`: best mean correlation of the +-0.5 s window around a candidate
-    frame with the windows around the reference crossings."""
+    frame with the windows around the reference crossings, searched +-`search` frames."""
     D = F.shape[1]
     best, bf = -9.0, int(approx)
-    lo = max(-min(REFINE_WINDOW), approx - REFINE_SEARCH)
-    hi = min(len(F) - max(REFINE_WINDOW) - 1, approx + REFINE_SEARCH)
+    lo = max(-min(REFINE_WINDOW), approx - search)
+    hi = min(len(F) - max(REFINE_WINDOW) - 1, approx + search)
     for c in range(lo, hi + 1):
         w = F[[c + o for o in REFINE_WINDOW]]
         sc = max(float(np.sum(w * R)) / (D * len(REFINE_WINDOW)) for R in refs)
