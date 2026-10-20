@@ -227,6 +227,7 @@ Racegow/
 ## References
 
 - [RaceGOW](https://www.racegow.com/): the FPV whoop racing competition that inspired this project (rules, tracks, leaderboards).
+- [RaceGOW hub](https://racegow.kwayzu.com/): registration, the current challenge, the submission deadline and race resources in one place.
 - [RaceGOW Track Visualizer](https://racegow.geddyv.lt/track-visualizer/): community tool for viewing RaceGOW track layouts.
 - [Video Lap Tracking Lab](https://zerotasteguy.github.io/vltl/): browser tool for marking lap times frame by frame in a video, comparing laps and exporting CSV/JSON. Handy for spot-checking results by hand.
 - [FPV DVR Lap Timer](https://github.com/lenuxfpv/fpv-dvr-lap-timer) by LenuxFPV: desktop app (Windows/Linux) for timing laps by hand after you fly. Copy your DVR files to the computer, play each recording back, and press **Z** on the frame where the quad passes through the start/finish gate; the time between presses is the lap time. It keeps a lap library with best-run stats and exports your fastest laps as a RaceGOW entry video. A manual counterpart to this tool, which finds the gate passes automatically.
