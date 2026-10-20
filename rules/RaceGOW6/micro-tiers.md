@@ -17,6 +17,7 @@ Micro Tiers of RaceGOW6
  Pilot Bonus Tier Cash Prizes*
 1st = $10 + 2 Extra Free Parking Entries
 2nd = $5 + 1 Extra Free Parking Entry
+3rd = 1 Extra Free Parking Entry
 
 Tier 1 = 1st - 6th
 Tier 2 = 7th - 12th
