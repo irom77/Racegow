@@ -33,6 +33,10 @@ Inspired by FPV DVR Lap Timer's "Compare two laps".
 
 ## Feature: sector splits and theoretical best (done)
 
+Time each section of every clean lap, so the pilot sees where a lap is won or lost. Only possible
+because every lap is already aligned to the reference lap (subsequence DTW); a manual gate-marking
+tool can't do this.
+
 - [x] `--sectors N` (2-10, split the reference lap evenly; default 3, `SECTORS_DEFAULT`) or
   `--sectors F1,F2,...` (reference-video frames, strictly inside the reference lap). Frames are saved
   as `sectors` in the track profile: `<work>/track.json`, or the `--track` / track-folder
