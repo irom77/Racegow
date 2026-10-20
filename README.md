@@ -91,17 +91,30 @@ split evenly into 3 by default). `report.md` shows the sector times of the faste
 in each sector, the **theoretical best** lap made of those best sectors, and the sector where your
 best-3 laps lose most time. `--sectors 4` changes the count; `--sectors F1,F2,...` puts the boundaries
 at frames of the reference lap (say, at a gate) and saves them in `track.json`.
+Or ask your agent:
+
+- *"Where am I losing time on Track 2? Show my sector splits and theoretical best."*
+- *"Split Track 2 into 4 sectors and tell me which sector my best 3 laps are slowest in."*
 
 **See your progress.** `history --track Track2/` collects every analysed session of the track from
 `fpvlaps-work/*/result.json` and writes `Track2/history.html`: best lap, median clean lap, best 3 and
 clean-lap % per session, with a table. Each session's `report.md` gets a consistency table (std dev of
 clean laps, best vs median lap, bad-lap and crash rate) and a link to the history page.
+Or ask your agent:
+
+- *"Am I getting faster on Track 2? Show my progress across sessions."*
+- *"How consistent was my last session on Track 2?"*
 
 **Compare two laps.** `compare --work fpvlaps-work/Track2-2nd` puts this session's best lap next to
 the best lap ever flown on the track: both videos side by side, each lap clock starting on its own gate
 frame, and a running gap underneath ("A 0.43 s ahead") that is known at every point of the lap, because
 the two laps are aligned frame by frame. `compare.md` lists the sector deltas and where the lap loses
 or gains most. Pick any two laps with `--lap SESSION/VIDEO:N --lap SESSION/VIDEO@SECONDS`.
+Or ask your agent:
+
+- *"Compare my best lap from today's Track 2 session with my best lap ever on that track."*
+- *"Put lap 5 of hdz_0023 from Track2-2nd next to lap 7 of hdz_0022 from Track2-1st and tell me where
+  I gained time."*
 
 ### Use it from an AI coding agent
 
