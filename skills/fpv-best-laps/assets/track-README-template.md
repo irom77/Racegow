@@ -23,9 +23,11 @@ are read by the tool (keep the labels as they are). Everything else is notes for
 - **Correct lap**: a start-gate crossing in your own footage that begins a full lap you have checked
   against the demo. The video path is relative to this folder (the extension may be left out). Give a
   time (`at 0:58.98`; it's turned into the nearest frame, so be as exact as you can) or a frame
-  (`frame 3539`). It's only used while there's no `track.json` here.
+  (`frame 3539`), or both crossings of the lap (`frames 3539-4370`). Or give only the video (`**Correct lap:** 1st/hdz_0000`) when you know it holds at
+  least one correct lap but not where it starts: the tool then takes its reference lap from that
+  video. It's only used while there's no `track.json` here.
 
-The reference lap is picked in this order: `--track` / `--anchor` on the command line, `track.json`
+The reference lap is picked in this order: `--track` / `--anchor` / `--reference-video` on the command line, `track.json`
 next to this README, the correct lap, automatic calibration.
 
 ## Notes

@@ -38,12 +38,23 @@ def calibrate(path, info):
 
 
 def extract_one(args):
+    """(name, message, ok). An unreadable recording (e.g. no moov atom: the DVR stopped before the file
+    was finalised) is skipped, not raised: a worker that exits loses its task and the Pool waits forever."""
     path, out_dir = args
-    path, out_dir = Path(path), Path(out_dir)
+    try:
+        return extract_video(Path(path), Path(out_dir))
+    except (Exception, SystemExit) as e:
+        tmp = Path(out_dir) / f"{Path(path).stem}.thumbs.tmp.npy"
+        if tmp.exists():
+            tmp.unlink()
+        return Path(path).stem, f"skipped, unreadable ({e})", False
+
+
+def extract_video(path, out_dir):
     name = path.stem
     meta_p = out_dir / f"{name}.json"
     if meta_p.exists():
-        return name, "cached"
+        return name, "cached", True
     cv2.setNumThreads(2)
     info = video_info(path)
     cal = calibrate(path, info)
@@ -80,17 +91,24 @@ def extract_one(args):
                         cells=np.array(cells) if cells else np.zeros((0, 0), np.uint8))
     meta = dict(video=str(path), name=name, fps=info["fps"], n=n, width=info["w"], height=info["h"], **cal)
     meta_p.write_text(json.dumps(meta, indent=1))
-    return name, f"{n} frames, {len(cal['timers'])} OSD timer(s)"
+    return name, f"{n} frames, {len(cal['timers'])} OSD timer(s)", True
 
 
 def extract_all(videos, work, workers=None):
+    """Extracts every video; returns the names that have features (unreadable ones are skipped), in the
+    order given."""
     out = Path(work) / "features"
     out.mkdir(parents=True, exist_ok=True)
     workers = workers or max(1, min(len(videos), (os.cpu_count() or 2) // 3))
+    ok = set()
     with Pool(workers) as p:
-        for name, msg in p.imap_unordered(extract_one, [(str(v), str(out)) for v in videos]):
+        for name, msg, good in p.imap_unordered(extract_one, [(str(v), str(out)) for v in videos]):
             print(f"  [extract] {name}: {msg}", flush=True)
-    return out
+            if good:
+                ok.add(name)
+    if len(ok) < len(videos):
+        print(f"  {len(videos) - len(ok)} of {len(videos)} video(s) skipped as unreadable", flush=True)
+    return [Path(v).stem for v in videos if Path(v).stem in ok]
 
 
 def load(work, name):

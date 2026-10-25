@@ -7,7 +7,7 @@ the clip with a left-aligned lap-time overlay.
                              [--readme FILE | --no-readme] [--sectors 3 | --sectors F1,F2,...]
   python fpvlaps.py extract  --videos DIR [--work DIR]
   python fpvlaps.py analyze  --videos DIR [--work DIR] [--track PROFILE.json] [--anchor VIDEO:FRAME]
-                             [--readme FILE | --no-readme]
+                             [--reference-video VIDEO] [--readme FILE | --no-readme]
   python fpvlaps.py verify   (--url YOUTUBE_URL | --videos DIR) [--claim 30.82 | --claim 10.27,10.33,10.22]
                              [--start h:mm:ss] [--end h:mm:ss] [--tolerance 0.05] [--track PROFILE.json]
   python fpvlaps.py save-track --work DIR [--to TRACK_DIR] [--force]
@@ -22,8 +22,10 @@ the clip with a left-aligned lap-time overlay.
 `analyze` after a `--anchor` correction takes seconds.
 
 Track folder README: when --videos is a batch folder (e.g. Track2/2nd), README.md in that folder or
-its parent is read. The reference lap is, in order: --track / --anchor, track.json next to the README,
-the README's **Correct lap:** line, automatic calibration. After verifying a run, `save-track` copies
+its parent is read. The reference lap is, in order: --track / --anchor / --reference-video, track.json
+next to the README, the README's **Correct lap:** line, automatic calibration. --reference-video (or a
+**Correct lap:** line with only a video) names a video holding at least one correct lap: calibration
+then takes its reference lap from that video only. After verifying a run, `save-track` copies
 its profile next to the README for later batches. See fpvlaps/trackdir.py for the README format.
 
 YouTube (optional, needs yt-dlp): `--url` replaces `--videos` on run/extract/analyze/verify. The video is
@@ -74,7 +76,10 @@ def main():
     ap.add_argument("--audio", default="a", choices=["a", "b", "none"],
                     help="compare: audio of lap A (default), lap B, or none")
     ap.add_argument("--no-video", action="store_true", help="compare: only compare.md/json and gap.png")
-    ap.add_argument("--anchor", help="manual start-gate crossing VIDEO:FRAME (overrides auto calibration)")
+    ap.add_argument("--anchor", help="manual start-gate crossing VIDEO:FRAME (overrides auto calibration), or "
+                    "VIDEO:START-END for both crossings of one correct lap")
+    ap.add_argument("--reference-video", help="a video (name in --videos, or a path) that holds at least one "
+                    "correct lap: calibrate on its laps only (no frame needed, unlike --anchor)")
     ap.add_argument("--readme", help="track README to use (default: README.md in --videos or its parent)")
     ap.add_argument("--no-readme", action="store_true", help="ignore the track README")
     ap.add_argument("--to", help="save-track: folder to save track.json/.npz in (default: the track README's folder)")
@@ -139,18 +144,28 @@ def main():
         from fpvlaps.extract import extract_all
         videos = list_videos(a.videos)
         print(f"[1/3] extracting features from {len(videos)} video(s) -> {work}")
-        extract_all(videos, work, a.workers)
+        names = extract_all(videos, work, a.workers)
+        if not names:
+            sys.exit("No readable videos")
     if a.command in ("run", "analyze", "verify"):
         from fpvlaps.analyze import analyze
         from fpvlaps.trackdir import choose_reference
         print("[2/3] calibrating track + detecting laps")
-        ch = choose_reference(a.videos, a.track, a.anchor, a.readme, not a.no_readme)
+        ch = choose_reference(a.videos, a.track, a.anchor, a.readme, not a.no_readme, a.reference_video)
         if ch["readme"]:
             print(f"  track README: {ch['readme']}")
+        if a.reference_video and not a.url:
+            if ch["readme"]:
+                from fpvlaps.trackdir import record_reference_video
+                record_reference_video(ch["readme"], ch["reference_video"]["path"])
+            elif not a.no_readme:
+                print("  no track README: create one in the track folder from assets/track-README-template.md "
+                      "(demo link, flythrough start, **Correct lap:** with this reference video)")
         print(f"  reference: {ch['how']}")
         try:
-            analyze(work, [v.stem for v in videos], track=ch["track"], anchor=ch["anchor"], videos_dir=a.videos,
-                    correct_lap=ch["correct_lap"], readme=ch, sectors=a.sectors)
+            analyze(work, names, track=ch["track"], anchor=ch["anchor"], videos_dir=a.videos,
+                    correct_lap=ch["correct_lap"], readme=ch, sectors=a.sectors,
+                    reference_video=ch["reference_video"])
         except RuntimeError as e:
             if a.command != "verify":
                 raise

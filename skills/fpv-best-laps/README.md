@@ -173,8 +173,9 @@ Track2/
 ```
 
 `analyze --videos Track2/2nd` then needs no other flags. The reference lap is taken, in order, from
-`--track` / `--anchor`, `track.json` next to the README, the README's correct lap (a video in any batch
-folder, e.g. `1st/hdz_0022 at 0:59`), or automatic calibration. `report.md` links the demo flythrough
+`--track` / `--anchor` / `--reference-video`, `track.json` next to the README, the README's correct lap
+(a video in any batch folder, e.g. `1st/hdz_0022 at 0:59`; just `1st/hdz_0022` makes it a reference
+video), or automatic calibration. `report.md` links the demo flythrough
 to check the winning laps against. Template: [`assets/track-README-template.md`](assets/track-README-template.md).
 
 | Command | Does |
@@ -195,7 +196,8 @@ to check the winning laps against. Template: [`assets/track-README-template.md`]
 | `--track PROFILE.json` | – | Reuse a saved track profile instead of calibrating. With `history`: the track folder or name. |
 | `--work-root DIR` | `./fpvlaps-work` | `history`, `compare`: folder holding one work directory per session. |
 | `--out DIR` | the track folder | `history`: where to write `history.html` / `history.json`. |
-| `--anchor VIDEO:FRAME` | – | Manual start-gate crossing, e.g. `hdz_0024:1596`. Overrides auto calibration. |
+| `--anchor VIDEO:FRAME` | – | Manual start-gate crossing, e.g. `hdz_0024:1596`. Overrides auto calibration. `VIDEO:START-END` (e.g. `hdz_0025:1716-2712`) gives both crossings of one correct lap, used as given. |
+| `--reference-video VIDEO` | – | A video (name in `--videos`, or a path) the pilot knows holds at least one correct lap, e.g. `hdz_0025`. Calibration takes its reference lap from that video only; no frame needed. |
 | `--sectors N` or `F1,F2,...` | 3 | Sector splits: split the reference lap evenly into N sectors, or at these reference-video frames (saved in `track.json` and reused). |
 | `--readme FILE` | `README.md` in `--videos` or its parent | Track README with the demo link and the reference lap. |
 | `--no-readme` | – | Ignore the track README (reference from `--track`/`--anchor` or auto calibration only). |
@@ -478,6 +480,10 @@ Overrides:
 - `--track old/track.json`: skip calibration and reuse a known layout.
 - `--anchor VIDEO:FRAME`: you name one frame where the quad crosses the gate during a lap; the
   reference lap is built from there.
+- `--reference-video VIDEO` (or `**Correct lap:** 1st/hdz_0025` without a time in the track README):
+  you name a video that holds at least one correct lap. Calibration runs as above, but candidate
+  reference laps come from that video only; the lap period, start-line template and start line
+  still use every video.
 
 ### 4. Lap detection
 

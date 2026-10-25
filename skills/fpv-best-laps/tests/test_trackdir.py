@@ -8,7 +8,8 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-from fpvlaps.trackdir import choose_reference, demo_link, find_readme, parse_clock, parse_readme, save_track  # noqa: E402
+from fpvlaps.trackdir import (choose_reference, demo_link, find_readme, parse_clock, parse_readme,  # noqa: E402
+                              record_reference_video, save_track)
 
 README = """# Track 2
 
@@ -52,6 +53,61 @@ class TrackDir(unittest.TestCase):
         (self.track / "README.md").write_text("**Correct lap:** 1st/hdz_0022.mp4 frame 3539\n")
         lap = parse_readme(self.track / "README.md")["correct_lap"]
         self.assertEqual(lap, dict(video="1st/hdz_0022.mp4", frame=3539))
+
+    def test_correct_lap_frame_range(self):
+        (self.track / "README.md").write_text("**Correct lap:** `1st/hdz_0022` frames 1716-2712\n")
+        lap = parse_readme(self.track / "README.md")["correct_lap"]
+        self.assertEqual(lap, dict(video="1st/hdz_0022", frame=1716, end_frame=2712))
+        ch = choose_reference(self.track / "2nd")
+        self.assertIsNone(ch["reference_video"])
+        self.assertIn("frames 1716-2712", ch["how"])
+
+    def test_correct_lap_video_only_is_reference_video(self):
+        (self.track / "README.md").write_text("**Correct lap:** `1st/hdz_0022`\n\nMore notes\n")
+        lap = parse_readme(self.track / "README.md")["correct_lap"]
+        self.assertEqual(lap, dict(video="1st/hdz_0022"))
+        ch = choose_reference(self.track / "2nd")
+        self.assertIsNone(ch["correct_lap"])
+        self.assertEqual(ch["reference_video"]["path"], (self.track / "1st" / "hdz_0022.mp4").resolve())
+        self.assertIn("reference video 1st/hdz_0022", ch["how"])
+
+    def test_reference_video_option(self):
+        ch = choose_reference(self.track / "1st", reference_video="hdz_0022")
+        self.assertEqual(ch["reference_video"]["video"], "hdz_0022")
+        self.assertIsNone(ch["correct_lap"])
+        self.assertIn("--reference-video", ch["how"])
+        (self.track / "track.json").write_text("{}")         # the command line beats the README's profile
+        ch = choose_reference(self.track / "1st", reference_video=str(self.track / "1st" / "hdz_0022.mp4"))
+        self.assertIsNone(ch["track"])
+        self.assertEqual(ch["reference_video"]["video"], "hdz_0022")
+        with self.assertRaises(SystemExit):
+            choose_reference(self.track / "1st", reference_video="hdz_9999")
+
+    def test_record_reference_video(self):
+        rd = self.track / "README.md"
+        rd.write_text("# Track 2\n\n**Demo video:** https://x (\"long\ntitle\")\n**Flythrough starts at:** 1:00\n\nNotes\n")
+        self.assertTrue(record_reference_video(rd, self.track / "1st" / "hdz_0022.mp4", self.silent))
+        lines = rd.read_text().splitlines()
+        self.assertEqual(lines[5], "**Correct lap:** `1st/hdz_0022`")
+        self.assertEqual(parse_readme(rd)["correct_lap"], dict(video="1st/hdz_0022"))
+        self.assertEqual(parse_readme(rd)["flythrough"], "1:00")
+        # never replaces a correct lap that's already there
+        self.assertFalse(record_reference_video(rd, self.track / "2nd" / "x.mp4", self.silent))
+        rd.write_text(README)
+        self.assertFalse(record_reference_video(rd, self.track / "1st" / "hdz_0022.mp4", self.silent))
+        self.assertEqual(rd.read_text(), README)
+
+    def test_record_reference_video_demo_only_or_bare(self):
+        rd = self.track / "README.md"
+        rd.write_text("# Track 2\n**Demo video:** https://x (\"a\nb\")\n\nNotes\n")
+        record_reference_video(rd, self.track / "1st" / "hdz_0022.mp4", self.silent)
+        self.assertEqual(rd.read_text().splitlines()[3], "**Correct lap:** `1st/hdz_0022`")
+        rd.write_text("# Track 2\nnotes\n")
+        record_reference_video(rd, self.track / "1st" / "hdz_0022.mp4", self.silent)
+        self.assertEqual(rd.read_text().splitlines()[:3], ["# Track 2", "", "**Correct lap:** `1st/hdz_0022`"])
+        outside = Path(self.tmp.name) / "other.mp4"
+        rd.write_text("# Track 2\n")
+        self.assertFalse(record_reference_video(rd, outside, self.silent))
 
     def test_readme_without_labels(self):
         (self.track / "README.md").write_text("# notes\nnothing here\n")

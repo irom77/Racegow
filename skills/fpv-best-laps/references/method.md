@@ -48,6 +48,8 @@ track that starts parked at the gate".
      the start spot directly in front of the start gate, about 0.4 s before the quad passes under
      the gate's top bar.
    - Saved to `track.json`/`track.npz`. `--anchor VIDEO:FRAME` replaces this step with a known crossing.
+     `--reference-video VIDEO` keeps this step but takes candidate laps from that one video (one the
+     pilot knows holds a correct lap).
 4. **Laps** (`laps.py`): subsequence DTW (speed 0.5x-2x) of the reference lap inside every video
    finds lap candidates. Adjacent laps may overlap by 0.6 s at their shared boundary. Each boundary
    is then refined at full frame rate, in two passes: first against the reference lap's two

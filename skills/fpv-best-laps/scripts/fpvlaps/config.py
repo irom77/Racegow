@@ -31,6 +31,8 @@ LAP_MIN_FACTOR, LAP_MAX_FACTOR = 0.82, 1.5    # valid lap duration relative to t
                                               # (a lap that skips part of the course comes out much shorter)
 SHORT_LOOP_RATIO = 0.93                       # typical clean lap below this x lap period = the reference lap
                                               # is a shortcut loop (e.g. a skipped dive); try another one
+LONG_LOOP_RATIO = 1.15                        # typical clean lap above this x lap period = the reference spans
+                                              # more than one lap's worth (seen: Track 3, 1.23x on a wrong pair)
 CHAIN_MIN = 0.7                               # share of back-to-back laps that share their crossing; a
                                               # reference that doesn't start/end at the gate leaves gaps
 MAX_REFERENCE_TRIES = 6                       # auto calibration: reference candidates tried before giving up

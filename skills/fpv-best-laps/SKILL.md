@@ -46,11 +46,32 @@ used when you report.
 - Paths with Windows drive letters work as-is on Windows. Under WSL use `/mnt/c/...`.
 - **Track folder README.** When `<folder>` is a batch inside a track folder (`Track2/2nd`), the tool
   reads `README.md` from the folder or its parent and logs `reference: ...`. It picks the reference
-  lap in this order: `--track` / `--anchor`, `track.json` next to the README, the README's
-  `**Correct lap:**` line, automatic calibration. The README's demo link and flythrough start go into
+  lap in this order: `--track` / `--anchor` / `--reference-video`, `track.json` next to the README,
+  the README's `**Correct lap:**` line, automatic calibration. The README's demo link and flythrough start go into
   `report.md` ("Reference to check against"). Read that README yourself too: it often has notes
   such as skipped-dive shortcuts. `--no-readme` ignores it, `--readme FILE` picks another one. Format:
   `assets/track-README-template.md`.
+- **First batch of a new track: write the track README first.** If the track folder (the parent of
+  the batch folder) has no `README.md`, create one from `assets/track-README-template.md` before
+  analysing: the demo video URL and the flythrough start (ask the pilot if you don't have them),
+  and the reference video as `**Correct lap:** <batch>/<video>` when the pilot named one. Ask the
+  pilot which video holds a correct lap if they haven't said; it's what later batches and checks
+  build on. `analyze --reference-video` also adds that line to an existing README that has no
+  correct lap yet (it never replaces one). Later batches then pick it all up with no flags.
+- **Reference video.** When the pilot names a video that holds at least one correct lap ("use
+  hdz_0025, it starts with 3 correct laps"), pass `--reference-video hdz_0025` (or write
+  `**Correct lap:** 1st/hdz_0025` with no time or frame in the track README). Calibration then
+  takes its reference lap from that video only (the other videos still set the lap period and the
+  start line), so no frame has to be found by hand. Use this on a new track instead of
+  automatic calibration whenever the pilot points at a video. Still check the sheets (step 3).
+  It can fail when the start-gate view is plain or shows up elsewhere on the lap (Track 3: a
+  look-alike half a lap in; it picked a lap 123% of the period and `report.md` said the reference
+  looks wrong). Then pin the lap yourself in that video: tile frames from the launch (every 60
+  frames, then every 10 around the gate passes), find the same gate pass one lap apart, and re-run
+  with `--anchor VIDEO:START-END` (both crossings, used as given; the single-frame anchor's end
+  search can miss too). Write it into the README as `**Correct lap:** 1st/hdz_0025 frames 1716-2712`.
+- **Unreadable files** (no moov atom: the DVR stopped before finalising) are skipped with
+  `[extract] ...: skipped, unreadable` and left out of the analysis. List them in your report.
 - Feature extraction decodes every frame once, in parallel across videos (measured: 36 min of 720p60
   HEVC in about 15 min on a 22-core machine, reading from a Windows drive under WSL). Results are cached in
   `<work>/features/`. A re-run (e.g. with `--anchor`) skips extraction but still spends 1-3 min on

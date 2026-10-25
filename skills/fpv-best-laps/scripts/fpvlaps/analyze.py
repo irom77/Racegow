@@ -7,7 +7,7 @@ from . import track as track_mod
 from .config import (OCR_STEP, DTW_CANDIDATE_COST, CLEAN_COST_MIN, CLEAN_COST_MAX, CLEAN_COST_PCTL,
                      CLEAN_COST_FACTOR, FAST_OUTLIER, GATE_FIT_MIN, LAP_MIN_FACTOR,
                      LAP_MAX_FACTOR, STALL_MOTION, STALL_SECS, FLIGHT_MOTION, LAPS_PER_RESULT, DTW_STEP,
-                     SHORT_LOOP_RATIO, MAX_REFERENCE_TRIES, CHAIN_MIN)
+                     SHORT_LOOP_RATIO, LONG_LOOP_RATIO, MAX_REFERENCE_TRIES, CHAIN_MIN)
 from .extract import load
 from .laps import fine_desc, dtw_desc, lap_matches, refine, stalled, window
 from .report import write_reports
@@ -220,6 +220,9 @@ def reference_problems(typical, chain, P):
     if typical < SHORT_LOOP_RATIO * P:
         out.append(f"the typical clean lap ({typical:.2f}s) is only {typical / P:.0%} of the track's lap "
                    f"period ({P:.2f}s), so the reference probably skips part of the course (e.g. a dive)")
+    if typical > LONG_LOOP_RATIO * P:
+        out.append(f"the typical clean lap ({typical:.2f}s) is {typical / P:.0%} of the track's lap period "
+                   f"({P:.2f}s), so the reference probably doesn't start and end at the same start-gate pass")
     if chain < CHAIN_MIN:
         out.append(f"only {chain:.0%} of back-to-back laps share their crossing, so the reference probably "
                    f"doesn't start and end at the start gate")
@@ -233,25 +236,36 @@ def reference_warning(ref, problems):
 
 
 def correct_lap_anchor(work, vids, lap, videos_dir, log):
-    """The README's correct lap as an anchor: (videos to build the reference from, video name, frame).
-    A video from another batch folder is extracted on its own into <work>/reference/<folder>/ and named
-    by its README path (e.g. 1st/hdz_0022), so it can't clash with a same-named video in this batch."""
+    """The README's correct lap as an anchor: (videos to build the reference from, video name, frame)."""
+    pool, v = reference_pool(work, vids, lap, videos_dir, log)
+    # used as given: the pilot picked this crossing, and any consistent timing line times laps equally well
+    frame = int(lap["frame"]) if "frame" in lap else int(round(lap["time"] * v["fps"]))
+    if "end_frame" in lap:
+        frame = (frame, int(lap["end_frame"]))
+    log(f"  correct lap: {v['name']} " + (f"frames {frame[0]}-{frame[1]}" if isinstance(frame, tuple) else f"frame {frame}"))
+    return pool, v["name"], frame
+
+
+def reference_pool(work, vids, lap, videos_dir, log):
+    """(videos to build the reference from, the video of `lap`). A video from another batch folder is
+    extracted on its own into <work>/reference/<folder>/ and named by its README path (e.g.
+    1st/hdz_0022), so it can't clash with a same-named video in this batch."""
     path = Path(lap["path"])
     if videos_dir and path.parent == Path(videos_dir).resolve():
-        v, pool = next(u for u in vids if u["name"] == path.stem), vids
+        v, pool = next((u for u in vids if u["name"] == path.stem), None), vids
+        if v is None:
+            raise RuntimeError(f"reference video {path.name} is unreadable or not in this batch")
     else:
         from .extract import extract_all
         sub = "_".join(p for p in Path(lap["video"]).parent.parts if p not in ("..", ".", "/")) or "_"
         rw = Path(work) / "reference" / sub
         log(f"  correct lap is in another folder: extracting {path}")
-        extract_all([path], rw, 1)
+        if not extract_all([path], rw, 1):
+            raise RuntimeError(f"reference video {path} is unreadable")
         v = load_all(rw, [path.stem], log)[0]
         v["name"] = Path(lap["video"]).with_suffix("").as_posix()
         pool = vids + [v]
-    # used as given: the pilot picked this crossing, and any consistent timing line times laps equally well
-    frame = int(lap["frame"]) if "frame" in lap else int(round(lap["time"] * v["fps"]))
-    log(f"  correct lap: {v['name']} frame {frame}")
-    return pool, v["name"], frame
+    return pool, v
 
 
 def track_readme_info(readme):
@@ -265,9 +279,11 @@ def track_readme_info(readme):
 
 
 def analyze(work, names, track=None, anchor=None, videos_dir=None, correct_lap=None, readme=None, sectors=None,
-            log=print):
+            reference_video=None, log=print):
     """`readme`: what trackdir.choose_reference found (README path, demo, how the reference was chosen),
-    recorded in result.json and report.md. `sectors`: the --sectors spec (count or reference frames)."""
+    recorded in result.json and report.md. `sectors`: the --sectors spec (count or reference frames).
+    `reference_video`: {video, path} of a video the pilot knows holds a correct lap; calibration takes
+    its reference lap from that video only."""
     vids = load_all(work, names, log)
     pool = vids                                # videos the reference lap may come from
     fps = vids[0]["fps"]
@@ -288,7 +304,8 @@ def analyze(work, names, track=None, anchor=None, videos_dir=None, correct_lap=N
     elif anchor or correct_lap:
         if anchor:
             name, frame = anchor.rsplit(":", 1)
-            name, frame = Path(name).stem, int(frame)
+            name = Path(name).stem
+            frame = tuple(map(int, frame.split("-"))) if "-" in frame else int(frame)
         else:
             pool, name, frame = correct_lap_anchor(work, vids, correct_lap, videos_dir, log)
         ref = track_mod.reference_from_anchor(pool, name, frame, log)
@@ -298,11 +315,23 @@ def analyze(work, names, track=None, anchor=None, videos_dir=None, correct_lap=N
         P = ref["period_s"]
         all_laps, clean_thr, typical, chain = detect(vids, T, wins, P)
     else:
-        P, cands = track_mod.reference_candidates(vids, log)
+        only = None
+        if reference_video:
+            pool, rv = reference_pool(work, vids, reference_video, videos_dir, log)
+            only = rv["name"]
+            log(f"  reference lap taken from {only} only (reference video)")
+        P, cands = track_mod.reference_candidates(pool, log, only=only, need_pairs=not only)
+        if only:                               # the pilot's video: follow its laps from the launch first
+            first = track_mod.reference_from_video(pool, only, P, log)
+            cands = ([first] if first else []) + cands
+            if not cands:
+                raise RuntimeError(f"No lap found in the reference video {only}. Pass --anchor VIDEO:FRAME.")
         tried = []
         for k, (ref0, rv) in enumerate(cands[:MAX_REFERENCE_TRIES]):
-            ref = track_mod.finalize_reference(vids, ref0, rv, P, log)
-            T, wins = track_mod.reference_arrays(vids, ref)
+            ref = track_mod.finalize_reference(pool, ref0, rv, P, log)
+            if only:
+                ref["source"] = "reference video"
+            T, wins = track_mod.reference_arrays(pool, ref)
             out = detect(vids, T, wins, P)
             tried.append((ref, T, wins, out))
             log(f"  reference {ref['video']} {ref['start']}->{ref['end']}: typical clean lap {out[2]:.2f}s "
@@ -312,7 +341,7 @@ def analyze(work, names, track=None, anchor=None, videos_dir=None, correct_lap=N
                 break
             log(f"  -> rejected: {'; '.join(problems)}; trying the next candidate")
         ref, T, wins, (all_laps, clean_thr, typical, chain) = max(
-            tried, key=lambda t: min(t[3][2] / P, 1.0) + min(t[3][3], CHAIN_MIN))
+            tried, key=lambda t: 1 - abs(1 - t[3][2] / P) + min(t[3][3], CHAIN_MIN))
     problems = reference_problems(typical, chain, P)
     if problems:
         warnings.append(reference_warning(ref, problems))

@@ -141,9 +141,12 @@ def calibrate(vids, log=print):
     return finalize_reference(vids, cands[0][0], cands[0][1], P, log)
 
 
-def reference_candidates(vids, log=print):
+def reference_candidates(vids, log=print, only=None, need_pairs=True):
     """Lap period and the candidate reference laps, best first: [(ref, video)]. Raises with a message
-    telling the agent what to do."""
+    telling the agent what to do. `only`: take candidate laps from this video alone (the pilot's
+    reference video, holding at least one correct lap); the other videos still set the lap period,
+    the start-line template and the ranking. `need_pairs=False`: return no candidates instead of
+    raising when no lap pair is found (the caller has another way to find the reference)."""
     for v in vids:
         v["takeoff"] = takeoff(v)
     tmpl = parked_template(vids)
@@ -158,12 +161,17 @@ def reference_candidates(vids, log=print):
     log(f"  lap period ~{P:.2f}s; parked start found in {sum(1 for v in vids if v['takeoff'])}/{len(vids)} videos")
     allc = []
     for v in vids:
+        if only and v["name"] != only:
+            continue
         for c in gate_candidates(v, tmpl, Pf, vids):
             c["video"] = v["name"]
             c["score"] = c["park"] + c["post"]
             allc.append(c)
+    if not allc and not need_pairs:
+        return P, []
     if not allc:
-        raise RuntimeError("No start-line views found during flight. Pass --anchor VIDEO:FRAME.")
+        raise RuntimeError("No start-line views found during flight" + (f" in {only}" if only else "")
+                           + ". Pass --anchor VIDEO:FRAME.")
     thr = np.percentile([c["score"] for c in allc], 60)
     by_video = {}
     for c in allc:
@@ -178,10 +186,18 @@ def reference_candidates(vids, log=print):
                 gap = b["frame"] - a["frame"]
                 if 0.75 * Pf <= gap <= 1.35 * Pf and b["score"] >= thr and same_segment(v, a["frame"], b["frame"]):
                     pairs.append((a["score"] + b["score"], v, a["frame"], b["frame"]))
+    if not pairs and not need_pairs:
+        return P, []
     if not pairs:
-        raise RuntimeError("No clean lap between two start-line views. Pass --anchor VIDEO:FRAME.")
+        raise RuntimeError("No clean lap between two start-line views" + (f" in {only}" if only else "")
+                           + ". Pass --anchor VIDEO:FRAME.")
     pairs.sort(key=lambda p: -p[0])
-    return P, rank_references(vids, pairs[:8], P, log)
+    try:
+        return P, rank_references(vids, pairs[:8], P, log)
+    except RuntimeError:
+        if need_pairs:
+            raise
+        return P, []
 
 
 def same_segment(v, a, b):
@@ -309,11 +325,19 @@ def shift_to_start_line(vids, v, ref, P, log):
 
 
 def reference_from_anchor(vids, name, frame, log=print):
-    """Manual anchor: a start-gate crossing frame; the lap end is found one lap period later."""
+    """Manual anchor: a start-gate crossing frame; the lap end is found one lap period later. `frame`
+    may also be (start, end): both crossings of one lap, used as given (for tracks whose start-gate
+    view is too plain for the end search, e.g. Track 3)."""
     v = next((u for u in vids if u["name"] == name), None)
     if v is None:
         raise RuntimeError(f"--anchor video {name} not found")
     P = lap_period(vids) or 10.0
+    if isinstance(frame, tuple):
+        a, b = frame
+        if not 0 <= a < b < len(v["F"]):
+            raise RuntimeError(f"--anchor {name}:{a}-{b}: frames outside the video or in the wrong order")
+        log(f"  reference from anchor: {name} {a}->{b} ({(b - a) / v['fps']:.2f}s, both ends given)")
+        return dict(video=name, start=int(a), end=int(b), period_s=P, source="anchor")
     Pf = int(P * v["fps"])
     F = v["F"]
     w0 = window(F, frame)
@@ -330,3 +354,62 @@ def reference_from_anchor(vids, name, frame, log=print):
     ref = dict(video=name, start=int(frame), end=int(bf), period_s=P, source="anchor")
     log(f"  reference from anchor: {name} {frame}->{bf} ({(bf - frame) / v['fps']:.2f}s)")
     return ref
+
+
+def reference_from_video(vids, name, P, log=print):
+    """Reference lap from a video the pilot knows holds correct laps, found by following its laps.
+
+    The quad is parked in front of the start gate, so the first second of flight after launch passes
+    the start gate. For a few seed frames there, every later frame that looks like the seed is a
+    candidate pass; the passes chained about one lap period apart (0.75-1.3x) are the laps. A track
+    that also shows the gate's sightline mid-lap (seen: Track 3, half a lap in) gives look-alikes
+    there, but those don't chain a lap apart. The seed with the longest chain wins; its lap whose two
+    ends look most alike is the reference. Returns (ref, video) like reference_candidates, or None."""
+    v = next(u for u in vids if u["name"] == name)
+    t = v.get("takeoff") or takeoff(v)
+    if not t:
+        log(f"  {name}: no parked start, can't follow its laps from the launch")
+        return None
+    F, fps = v["F"], v["fps"]
+    Pf = P * fps
+    launch = t[2]
+    best = None
+    for seed in range(launch, min(len(F) - 1, launch + int(1.5 * fps)), max(1, int(fps / 10))):
+        w0 = window(F, seed)
+        if w0 is None:
+            continue
+        frames = np.arange(seed, len(F))
+        s = np.full(len(frames), -1.0)
+        for k in range(0, len(frames), 3):
+            w = window(F, frames[k])
+            if w is None:
+                break
+            s[k] = float(np.sum(w * w0) / w.size)
+        half = int(0.2 * Pf)
+        peaks = [(int(frames[k]), s[k]) for k in range(0, len(s), 3)
+                 if s[k] > 0.35 and s[k] >= s[max(0, k - half):k + half].max()]
+        # longest chain from the seed with lap-sized gaps (DP over peaks in order)
+        chain = {seed: (1.0, [seed])}
+        for f, sc in peaks:
+            if f == seed:
+                continue
+            prev = [c for c in chain if 0.75 * Pf <= f - c <= 1.3 * Pf and same_segment(v, c, f)]
+            if prev:
+                c = max(prev, key=lambda c: (len(chain[c][1]), chain[c][0]))
+                chain[f] = (chain[c][0] + sc, chain[c][1] + [f])
+        tot, path = max(chain.values(), key=lambda x: (len(x[1]), x[0] / len(x[1])))
+        key = (len(path), tot / len(path))
+        if best is None or key > best[0]:
+            best = (key, seed, path)
+    if best is None or len(best[2]) < 2:
+        log(f"  {name}: no lap-sized repeat of the start-gate view after launch")
+        return None
+    (n, q), seed, path = best
+    log(f"  {name}: {n - 1} lap(s) followed from the launch (seed {seed}, mean match {q:.2f}): "
+        + " ".join(map(str, path)))
+    pairs = [(endpoint_match(v, a, b), a, b) for a, b in zip(path, path[1:])]
+    e, a, b = max(pairs)
+    ref = build_reference(v, a, b)
+    log(f"  reference candidate {name} {ref['start']}->{ref['end']} "
+        f"({(ref['end'] - ref['start']) / fps:.2f}s, ends match {e:.2f})")
+    return ref, v
