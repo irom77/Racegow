@@ -4,7 +4,7 @@
   yt_upload.py auth    --client CLIENT_SECRET.json      # one-time sign-in, saves the token
   yt_upload.py channel                                  # which channel the token uploads to
   yt_upload.py meta    --work WORK [--rank 1] ...       # build title/description/tags -> JSON
-  yt_upload.py upload  --meta META.json --privacy public --expect-channel @handle
+  yt_upload.py upload  --meta META.json [--privacy public] [--expect-channel @niuk9290]
   yt_upload.py record  --meta META.json --url https://youtu.be/ID   # save a URL by hand
 
 `meta` and `record` need only the standard library. `auth`, `channel` and `upload` need
@@ -417,10 +417,11 @@ def main():
 
     p = sub.add_parser("upload", help="upload the clip described by a meta JSON")
     p.add_argument("--meta", required=True)
-    p.add_argument("--privacy", required=True, choices=["private", "unlisted", "public"],
-                   help="the pilot's call on every upload")
-    p.add_argument("--expect-channel", required=True,
-                   help="channel id, title or @handle the pilot confirmed; refuses to upload elsewhere")
+    p.add_argument("--privacy", default="public", choices=["private", "unlisted", "public"],
+                   help="default public (the pilot's standing choice)")
+    p.add_argument("--expect-channel", default="@niuk9290",
+                   help="channel id, title or @handle; refuses to upload elsewhere (default @niuk9290, "
+                        "the pilot's RaceGOW channel)")
     p.add_argument("--file", help="clip to upload (default: the meta JSON's file)")
     p.add_argument("--again", action="store_true", help="upload even if this meta was uploaded before")
 

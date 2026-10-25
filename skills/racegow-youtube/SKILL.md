@@ -28,7 +28,11 @@ itself. If it's missing or revoked:
 $YT auth --client /path/to/client_secret_XXXX.json
 ```
 
-It prints `AUTH_URL ...`. There's no browser on WSL, so give the pilot that URL to open. Google
+It prints `AUTH_URL ...` (run it in the background with `PYTHONUNBUFFERED=1`, or the URL sits in
+the output buffer). There's no browser on WSL, so give the pilot that URL to open; it times out
+after a few minutes, so start a new one if they come back later. If the client secret file is gone,
+`token.json` still holds `client_id` and `client_secret`: rebuild an `{"installed": {...}}` client
+file from it in a private temp file (mode 600) and delete it after sign-in. Google
 redirects to `http://localhost:8765`, which the script is listening on. Then the pilot picks the
 **channel** to upload to at the Google sign-in. Setup in the Google Cloud project, once:
 enable **YouTube Data API v3**, create an OAuth client of type **Desktop app**, and while the app is
@@ -68,17 +72,19 @@ the demo description yourself (`uvx yt-dlp --skip-download --print description <
 
 1. **Show the pilot the full title, description and tags** and get an OK. Edit the JSON if they
    want wording changes.
-2. **Confirm the channel:** run `$YT channel` and ask the pilot whether that's the channel they
-   want. The first uploads went to **papfpv / @niuk9290** (`UCJeJajoMrXyvZQP2-tKLT8A`), not
-   youtube.com/irom77. If they want another channel, run `auth` again and pick it at sign-in.
-3. **Ask for privacy:** `private`, `unlisted` or `public`. It's the pilot's call every time (the
-   first uploads were public). Don't assume.
+2. **Channel: always https://www.youtube.com/@niuk9290** (papfpv, `UCJeJajoMrXyvZQP2-tKLT8A`),
+   never youtube.com/irom77. The pilot settled this; don't ask. Run `$YT channel` to check the
+   token points there. If it doesn't, run `auth` again: at sign-in the pilot must pick the
+   **papfpv** brand account on Google's "choose an account or brand account" page.
+3. **Privacy: public.** The pilot settled this too; don't ask, unless they say otherwise for a
+   particular clip.
 
 ```bash
-$YT upload --meta <work>/export/youtube_rank1.json --privacy public --expect-channel @niuk9290
+$YT upload --meta <work>/export/youtube_rank1.json
 ```
 
-`--expect-channel` takes the confirmed id, title or @handle. The upload is refused if the token
+Both are the script's defaults (`--privacy public`, `--expect-channel @niuk9290`); pass them only to
+override. `--expect-channel` takes an id, title or @handle. The upload is refused if the token
 points to a different channel, or if this meta JSON was already uploaded (`--again` to override).
 The upload is resumable, in 8 MB chunks, with progress.
 
