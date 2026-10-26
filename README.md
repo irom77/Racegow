@@ -234,7 +234,7 @@ Racegow/
 │   ├── index.html             overlay composition
 │   └── snapshots/             preview frames
 ├── rules/                     official RaceGOW rules per season (RaceGOW6/), refreshed by rules/update_rules.py
-└── docs/                      logo and README images
+└── docs/                      logo, README images, notes on related tools (ghostline-comparison.md)
 ```
 
 `export/index.html` expects its clip at `export/assets/best3_raw.mp4`, which is not committed
@@ -262,6 +262,7 @@ Racegow/
 - [RaceGOW Lap Calculator](https://racegow.geddyv.lt/lap-calculator/): browser tool from the same toolset. Load a DVR recording, mark clean and failed laps by hand, and it finds your fastest three consecutive clean laps, then hands that race to its video editor. A manual way to cross-check this tool's results.
 - [Video Lap Tracking Lab](https://zerotasteguy.github.io/vltl/): browser tool for marking lap times frame by frame in a video, comparing laps and exporting CSV/JSON. Handy for spot-checking results by hand.
 - [FPV DVR Lap Timer](https://github.com/lenuxfpv/fpv-dvr-lap-timer) by LenuxFPV: desktop app (Windows/Linux) for timing laps by hand after you fly. Copy your DVR files to the computer, play each recording back, and press **Z** on the frame where the quad passes through the start/finish gate; the time between presses is the lap time. It keeps a lap library with best-run stats and exports your fastest laps as a RaceGOW entry video. A manual counterpart to this tool, which finds the gate passes automatically.
+- [ghostline](https://github.com/Saqoosha/ghostline) by Saqoosha: works out the 3D flight path from HDZero DVR on a Gaussian-splat scan of the venue and replays every pilot's line in the browser ([2026 MultiGP Championship demo](https://ghostline.saqoo.sh/mgp-champs-2026/)). Shows *where* you flew rather than how fast; needs a venue scan and a high-end CUDA GPU. Compared with this tool in [docs/ghostline-comparison.md](docs/ghostline-comparison.md).
 
 ---
 
