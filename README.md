@@ -3,8 +3,8 @@
 </p>
 
 <p align="center">
-  <b>Drop in a folder of raw FPV race recordings. Get back your fastest 3 consecutive clean laps,<br>
-  timed to the frame and exported as a clip with a lap-time overlay.</b>
+  <b>Agent skills and CLIs for FPV pilots. The main one: drop in a folder of raw race recordings and get back<br>
+  your fastest 3 consecutive clean laps, timed to the frame and exported as a clip with a lap-time overlay.</b>
 </p>
 
 <p align="center">
@@ -18,7 +18,77 @@
 
 ---
 
-## Why
+## Skills
+
+| Skill | What it does |
+|---|---|
+| [`fpv-best-laps`](skills/fpv-best-laps/SKILL.md) | **Main skill.** Finds the fastest 3 consecutive clean laps in a folder of DVR recordings (RaceGOW, MultiGP, indoor or outdoor) and exports the clip with a lap-time overlay. [Details below](#fpv-best-laps). |
+| [`racegow-leaderboard`](skills/racegow-leaderboard/SKILL.md) | Your current place on the RaceGOW leaderboards, per track. |
+| [`racegow-youtube`](skills/racegow-youtube/SKILL.md) | Uploads a verified clip to your YouTube channel with the title, description and tags built from the run. |
+| `fpv-highlight-finder` *(planned)* | Not racing: picks the most interesting short of a requested length from a folder of freestyle/cruise footage and uploads it to YouTube. |
+
+More side skills will be added next to these, one folder each under `skills/`.
+
+Rendered clips you want to keep (for example on Windows) are saved **outside** the recordings
+folder, with `render --save-to DIR` or `save --work <work> --save-to DIR`. The default is
+`Videos/fpv-shorts/<session>`. Recording folders can then be deleted once the shorts are published
+and reviewed.
+
+## Use it from an AI coding agent
+
+Link each skill folder where your agent looks for skills:
+
+```bash
+for s in skills/*/; do
+  ln -s "$PWD/$s" ~/.claude/skills/   # Claude Code (Codex CLI: ~/.codex/skills/, shared: ~/.agents/skills/)
+done
+```
+
+Then, in any repository: *"Find my fastest 3 consecutive laps in D:\FPV\Track2 and export the clip."*
+The agent runs the analysis, checks the verification images, corrects the gate if needed, renders
+and reports the lap table. Other agents (Cursor, Gemini CLI, Aider...) can be pointed at
+the `SKILL.md` files from their rules file.
+
+---
+
+## RaceGOW leaderboard position
+
+[`skills/racegow-leaderboard`](skills/racegow-leaderboard/SKILL.md) looks up
+a pilot's place on the [RaceGOW leaderboards](https://www.racegow.com/leaderboards), per track:
+the official Rank, Official Time and Micro Tier once a track's results are out, otherwise a rank
+worked out from the Unofficial Times. It also says whether that's in the top or bottom half. It
+needs only Python's standard library:
+
+```bash
+python3 skills/racegow-leaderboard/scripts/leaderboard.py --pilot papfpv --reg 300 --out leaderboard.json
+```
+
+Or ask your agent: *"What's my current RaceGOW position?"*
+
+The official rules (scoring, micro tiers, classes) are saved in [`rules/`](rules/README.md), one
+folder per season. `python3 rules/update_rules.py` refreshes them from racegow.com; `git diff rules/`
+then shows what changed.
+
+## Upload the clip to YouTube
+
+[`skills/racegow-youtube`](skills/racegow-youtube/SKILL.md) uploads a verified clip to your channel.
+It builds the title and description from the run: time and splits, leaderboard rank, quad, date,
+sponsor, deadline and the demo flythrough link. Then it records the video URL in `result.json` and
+the track README. It always shows the text, the channel and the privacy setting for your OK first.
+It needs a Google Cloud OAuth desktop client with YouTube Data API v3 enabled; see the SKILL.md.
+
+```bash
+python3 skills/racegow-youtube/scripts/yt_upload.py meta --work fpvlaps-work/Track2-1st   # title + description
+```
+
+Or ask your agent: *"Upload my best Track 2 clip to YouTube."* The description gives your
+leaderboard rank (e.g. 223rd of 343); the top/bottom half is only in the leaderboard report.
+
+---
+
+## fpv-best-laps
+
+### Why
 
 Tiny-whoop racing (like the [RaceGOW](https://www.racegow.com/) format) is scored on your **best 3
 consecutive laps**. Finding them by hand means scrubbing through every DVR recording, frame-stepping
@@ -42,9 +112,7 @@ evening of work.
   <br><sub>Real output, RaceGOW6 Track 2: 23 recordings, 72 minutes of footage, 249 laps found, 139 clean. Best: 13.85 + 13.85 + 13.73 = <b>41.43 s</b>.</sub>
 </p>
 
----
-
-## Quick start
+### Quick start
 
 ```bash
 git clone https://github.com/irom77/Racegow.git
@@ -59,7 +127,8 @@ python3 -m venv .fpvlaps-venv
 ```
 
 You get `fpvlaps-work/<folder>/report.md` with the result and runners-up, `laps.csv` with every lap,
-verification images in `sheets/`, and the clip in `export/best3_laps_<video>_<total>s.mp4`.
+verification images in `sheets/`, and the clip in `export/best3_laps_<video>_<total>s.mp4` (add `--save-to DIR` for a copy outside the
+recordings folder).
 
 Prefer to check before rendering? Run `analyze` first, look at `sheets/rank1_crossings.jpg` (all four
 gate crossings should show the same spot), then `render --rank 1`.
@@ -116,21 +185,6 @@ Or ask your agent:
 - *"Put lap 5 of hdz_0023 from Track2-2nd next to lap 7 of hdz_0022 from Track2-1st and tell me where
   I gained time."*
 
-### Use it from an AI coding agent
-
-Link the skill folder where your agent looks for skills:
-
-```bash
-ln -s "$PWD/skills/fpv-best-laps" ~/.claude/skills/fpv-best-laps   # Claude Code
-ln -s "$PWD/skills/fpv-best-laps" ~/.codex/skills/fpv-best-laps    # OpenAI Codex CLI
-ln -s "$PWD/skills/fpv-best-laps" ~/.agents/skills/fpv-best-laps   # shared .agents convention
-```
-
-Then, in any repository: *"Find my fastest 3 consecutive laps in D:\FPV\Track2 and export the clip."*
-The agent runs the analysis, checks the verification images, corrects the gate if needed, renders
-and reports the lap table. Other agents (Cursor, Gemini CLI, Aider...) can be pointed at
-`skills/fpv-best-laps/SKILL.md` from their rules file.
-
 ### Optional: check a run posted on YouTube
 
 `verify` takes a YouTube link instead of a DVR folder and checks a claimed time: it downloads the
@@ -149,42 +203,7 @@ with a YouTube link for each gate crossing, and any cuts found in the OSD timer.
 agent: *"Verify https://youtu.be/<id>, claimed 41.43 s on Track 2."* Details:
 [skill README](skills/fpv-best-laps/README.md#optional-verify-a-youtube-run).
 
-### RaceGOW leaderboard position
-
-A second, small skill, [`skills/racegow-leaderboard`](skills/racegow-leaderboard/SKILL.md), looks up
-a pilot's place on the [RaceGOW leaderboards](https://www.racegow.com/leaderboards), per track:
-the official Rank, Official Time and Micro Tier once a track's results are out, otherwise a rank
-worked out from the Unofficial Times. It also says whether that's in the top or bottom half. It
-needs only Python's standard library:
-
-```bash
-python3 skills/racegow-leaderboard/scripts/leaderboard.py --pilot papfpv --reg 300 --out leaderboard.json
-```
-
-Or ask your agent: *"What's my current RaceGOW position?"*
-
-The official rules (scoring, micro tiers, classes) are saved in [`rules/`](rules/README.md), one
-folder per season. `python3 rules/update_rules.py` refreshes them from racegow.com; `git diff rules/`
-then shows what changed.
-
-### Upload the clip to YouTube
-
-[`skills/racegow-youtube`](skills/racegow-youtube/SKILL.md) uploads a verified clip to your channel.
-It builds the title and description from the run: time and splits, leaderboard rank, quad, date,
-sponsor, deadline and the demo flythrough link. Then it records the video URL in `result.json` and
-the track README. It always shows the text, the channel and the privacy setting for your OK first.
-It needs a Google Cloud OAuth desktop client with YouTube Data API v3 enabled; see the SKILL.md.
-
-```bash
-python3 skills/racegow-youtube/scripts/yt_upload.py meta --work fpvlaps-work/Track2-1st   # title + description
-```
-
-Or ask your agent: *"Upload my best Track 2 clip to YouTube."* The description gives your
-leaderboard rank (e.g. 223rd of 343); the top/bottom half is only in the leaderboard report.
-
----
-
-## How it works
+### How it works
 
 ```mermaid
 flowchart LR
@@ -206,9 +225,7 @@ The full architecture (module map, calibration and filter flowcharts, data flow,
 validation and limits) is in the **[skill README](skills/fpv-best-laps/README.md)**, and the
 detailed method is in [`references/method.md`](skills/fpv-best-laps/references/method.md).
 
----
-
-## Accuracy
+### Accuracy
 
 On the RaceGOW6 Track 1 test session (HDZero, 1280×720 at 60 fps), the fully automatic run picked the same three
 laps as careful manual frame-stepping: **30.82 s** automatic vs **30.77 s** manual. The small
@@ -221,14 +238,16 @@ Per-crossing accuracy is about ±2–3 frames (±0.05 s at 60 fps).
 
 ```
 Racegow/
-├── skills/fpv-best-laps/      ← the product: agent skill + CLI (start here)
+├── skills/fpv-best-laps/      ← main skill: agent skill + CLI (start here)
 │   ├── SKILL.md               agent instructions
 │   ├── README.md              full architecture and usage
-│   ├── scripts/fpvlaps.py     CLI: doctor · run · extract · analyze · render · save-track · verify · history · compare
+│   ├── scripts/fpvlaps.py     CLI: doctor · run · extract · analyze · render · save · save-track · verify · history · compare
 │   ├── scripts/fpvlaps/       pipeline package
 │   ├── references/method.md   detailed method and tunables
 │   ├── tests/                 unit tests (python -m unittest discover -s skills/fpv-best-laps/tests)
 │   └── assets/                OSD digit templates, track README template, HyperFrames overlay, fonts
+├── skills/racegow-leaderboard/  side skill: RaceGOW leaderboard position
+├── skills/racegow-youtube/      side skill: YouTube upload of a verified clip
 ├── legacy/                    original single-track prototype, not maintained (hard-coded paths; see legacy/README.md)
 ├── export/                    HyperFrames project used for the first hand-verified export
 │   ├── index.html             overlay composition
