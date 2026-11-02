@@ -16,7 +16,8 @@ the clip with a left-aligned lap-time overlay.
                              [--work-root DIR] [--renderer ...] [--audio a|b|none] [--no-video]
   python fpvlaps.py render   --work DIR [--rank 1] [--renderer auto|hyperframes|opencv]
                              [--background blur|black] [--blur-strength 40]
-                             [--music FILE|auto] [--music-volume -10]
+                             [--music FILE|auto] [--music-volume -10] [--save-to DIR]
+  python fpvlaps.py save     --work DIR --save-to DIR [--rank N]   (copy already-rendered clips)
 
 `run` = extract + analyze + render. Everything is cached under the work directory, so re-running
 `analyze` after a `--anchor` correction takes seconds.
@@ -61,7 +62,7 @@ def default_work(videos):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("command", choices=["doctor", "run", "extract", "analyze", "render", "save-track", "verify", "history",
-                                        "compare"])
+                                        "compare", "save"])
     ap.add_argument("--videos", help="folder of FPV recordings (one session per file)")
     ap.add_argument("--url", help="YouTube video to analyse instead of --videos (downloaded with yt-dlp)")
     ap.add_argument("--start", help="with --url: analyse from this time in the video (h:mm:ss, m:ss or seconds)")
@@ -105,6 +106,8 @@ def main():
     ap.add_argument("--music-volume", type=float, default=-10.0,
                     help="with --music: music level relative to the motor audio, in dB (default -10)")
     ap.add_argument("--title", help="overlay subtitle (default: '<videos folder> · <video>')")
+    ap.add_argument("--save-to", help="render/run/save: also copy the finished clip here (e.g. on Windows). Must be "
+                                      "outside the recordings folder, which is deleted after publishing")
     a = ap.parse_args()
 
     if a.command == "doctor":
@@ -123,6 +126,13 @@ def main():
         if not a.track:
             ap.error("--track is required (track folder or name)")
         write_history(a.track, a.work_root, a.out)
+        return
+
+    if a.command == "save":
+        from fpvlaps.render import save_copies
+        if not (a.work and a.save_to):
+            ap.error("--work and --save-to are required")
+        save_copies(a.work, a.save_to, a.rank if "--rank" in sys.argv else None)
         return
 
     if a.command == "compare":
@@ -189,7 +199,7 @@ def main():
         print("[3/3] rendering")
         render(work, rank=a.rank, renderer=a.renderer, lead=a.lead, title=a.title,
                background=a.background, blur_strength=a.blur_strength, music=a.music,
-               music_volume=a.music_volume)
+               music_volume=a.music_volume, save_to=a.save_to)
 
 
 if __name__ == "__main__":

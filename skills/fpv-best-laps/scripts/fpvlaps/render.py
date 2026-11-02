@@ -133,10 +133,48 @@ def render_opencv(p, out, subtitle):
     cap.release()
 
 
+def source_dirs(R):
+    """Folders holding the session's recordings (the batch folder and every video's own folder)."""
+    dirs = {Path(R["videos_dir"]).resolve()} if R.get("videos_dir") else set()
+    dirs |= {Path(v["path"]).resolve().parent for v in R.get("videos", []) if v.get("path")}
+    return dirs
+
+
+def check_save_dir(dest, R):
+    """Refuse a destination inside a recordings folder: those folders get deleted by hand once the clip
+    is published and reviewed, and a copy saved there would go with them."""
+    d = Path(dest).expanduser().resolve()
+    for s in source_dirs(R):
+        if d == s or s in d.parents:
+            raise SystemExit(f"--save-to {dest} is inside the recordings folder {s}, which is deleted after "
+                             "publishing; pick a folder outside it")
+    return d
+
+
+def save_copies(work, dest, rank=None):
+    """Copy rendered clips (one rank, or every render_rankN.json in <work>/export) to dest."""
+    work = Path(work)
+    R = json.loads((work / "result.json").read_text())
+    d = check_save_dir(dest, R)
+    metas = [work / "export" / f"render_rank{rank}.json"] if rank else sorted((work / "export").glob("render_rank*.json"))
+    outs = [Path(json.loads(m.read_text())["output"]) for m in metas if m.is_file()]
+    outs = [o if o.is_file() else work / "export" / o.name for o in outs]   # "output" may be cwd-relative
+    outs = [o for o in outs if o.is_file()]
+    if not outs:
+        raise SystemExit(f"No rendered clip in {work / 'export'}; run render first")
+    d.mkdir(parents=True, exist_ok=True)
+    for o in outs:
+        shutil.copy2(o, d / o.name)
+        print(f"  saved {d / o.name}")
+    return [d / o.name for o in outs]
+
+
 def render(work, rank=1, renderer="auto", lead=1.0, title=None, keep_clip=False, background="blur",
-           blur_strength=40, music=None, music_volume=-10.0):
+           blur_strength=40, music=None, music_volume=-10.0, save_to=None):
     work = Path(work)
     p = plan(work, rank, lead)
+    if save_to:
+        check_save_dir(save_to, p["R"])          # fail before minutes of rendering, not after
     src = p["video"]["path"]
     exp = work / "export"
     exp.mkdir(exist_ok=True)
@@ -189,4 +227,6 @@ def render(work, rank=1, renderer="auto", lead=1.0, title=None, keep_clip=False,
                 music=mus)
     (exp / f"render_rank{rank}.json").write_text(json.dumps(meta, indent=1))
     print(f"  exported {out}  ({use})")
+    if save_to:
+        save_copies(work, save_to, rank)
     return out

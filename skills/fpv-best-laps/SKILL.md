@@ -140,7 +140,13 @@ are filled with a blurred, dimmed copy of the footage by default. `--background 
 and `--blur-strength` (default 40 px) sets the blur. Music is off by default (the clip keeps its own
 audio). Add it only when the user asks: `--music <file>`, or `--music auto` for a generated track;
 the music sits 10 dB under the motor audio (`--music-volume`, more negative = quieter).
-If the user wants it somewhere specific, copy the file there.
+**Saving a copy for the pilot (e.g. on Windows): never inside the recordings folder.** The pilot
+deletes recording folders by hand once the clips are published and reviewed on YouTube, so a clip
+saved there would go with them. Use `--save-to DIR` on `render`/`run` (or `save --work <work>
+--save-to DIR [--rank N]` for clips already rendered). It refuses any folder inside the recordings
+folder. Default, unless the pilot names another place: a `fpv-shorts\<work dir name>` folder next to
+the recordings folder, e.g. `C:\Users\<user>\Videos\fpv-shorts\Tritac-R1` (WSL:
+`/mnt/c/Users/<user>/Videos/fpv-shorts/Tritac-R1`).
 The overlay counts up live: mid-clip frames show the running lap and total, and laps not yet flown
 show 0.00s. Check the last second of the clip to see the final numbers.
 
@@ -149,7 +155,7 @@ show 0.00s. Check the last second of the clip to see the final numbers.
 ### 5. Report
 
 Tell the user the result as a small table: video, lap 1/2/3, total, and the time span in the source
-video (from `report.md`, which lists frames and video times for every rank). Give the export path, how many videos and laps were analyzed and how many laps were rejected
+video (from `report.md`, which lists frames and video times for every rank). Give the export path and the saved copy's path, how many videos and laps were analyzed and how many laps were rejected
 (and the main reasons), and the next-best total. If you rejected a rank, report the next valid rank after the one you exported
 and explain the rejected one separately. Say plainly whether you verified the sheets. Lap
 times are accurate to about ±2-3 frames (±0.05 s at 60 fps).
