@@ -25,19 +25,21 @@ The token is in `~/.config/racegow-youtube/token.json` (mode 600, never in a rep
 itself. If it's missing or revoked:
 
 ```bash
-$YT auth --client /path/to/client_secret_XXXX.json
+$YT auth --client /path/to/client_secret_XXXX.json    # first time
+$YT auth                                             # again: reuses the client stored in token.json
 ```
 
 It prints `AUTH_URL ...` (run it in the background with `PYTHONUNBUFFERED=1`, or the URL sits in
 the output buffer). There's no browser on WSL, so give the pilot that URL to open; it times out
-after a few minutes, so start a new one if they come back later. If the client secret file is gone,
-`token.json` still holds `client_id` and `client_secret`: rebuild an `{"installed": {...}}` client
-file from it in a private temp file (mode 600) and delete it after sign-in. Google
+after a few minutes, so start a new one if they come back later. Signing in again needs no client
+file: `auth` without `--client` takes `client_id` and `client_secret` from the existing `token.json`. Google
 redirects to `http://localhost:8765`, which the script is listening on. Then the pilot picks the
 **channel** to upload to at the Google sign-in. Setup in the Google Cloud project, once:
 enable **YouTube Data API v3**, create an OAuth client of type **Desktop app**, and while the app is
-in testing mode add the pilot's Google account as a **test user**. Scopes: `youtube.upload` and
-`youtube.readonly` (to read the channel name).
+in testing mode add the pilot's Google account as a **test user**. Scopes: `youtube.upload`,
+`youtube.readonly` (to read the channel name) and `youtube` (playlists: fpv-highlights adds each
+Short to its playlist). Tokens are loaded with the scopes they were granted, so an older upload-only
+token still uploads.
 
 ## 2. Build the title and description
 

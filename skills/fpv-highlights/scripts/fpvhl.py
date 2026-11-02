@@ -11,6 +11,8 @@ park sessions; not racing) into one short, by default a vertical YouTube Short o
   python fpvhl.py save    --work DIR [--save-to DIR]
   python fpvhl.py meta    --work DIR [--title TEXT] [--quad NAME] [--pilot PAPFPV] [--place TEXT]
   python fpvhl.py upload  --work DIR [--privacy public|unlisted|private] [--expect-channel @niuk9290]
+                          [--playlist "FPV highlights" | --no-playlist]
+  python fpvhl.py playlist [--work DIR] [--video ID|URL ...] [--playlist "FPV highlights"]
 
 `run` = scan + pick + render. Scans are cached in <work>/scan/, so `pick` with other options or
 overrides takes seconds. Times (A-B) are seconds in the recording, as in picks.md.
@@ -30,7 +32,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("command", choices=["run", "scan", "pick", "render", "save", "meta", "upload"])
+    ap.add_argument("command", choices=["run", "scan", "pick", "render", "save", "meta", "upload", "playlist"])
     ap.add_argument("--videos", help="folder of recordings")
     ap.add_argument("--work", help="cache/output folder (default ./fpvlaps-work/hl_<videos folder name>)")
     ap.add_argument("--workers", type=int, help="parallel videos while scanning")
@@ -59,12 +61,23 @@ def main():
                                    "(default: from the folder name, else file dates)")
     ap.add_argument("--privacy", default="public", choices=["public", "unlisted", "private"])
     ap.add_argument("--expect-channel", default="@niuk9290")
+    ap.add_argument("--playlist", default="FPV highlights",
+                    help="upload/playlist: YouTube playlist the short goes in (created if missing)")
+    ap.add_argument("--no-playlist", action="store_true", help="upload: don't add it to a playlist")
+    ap.add_argument("--video", action="append", default=[], help="playlist: also add this video id/URL")
     ap.add_argument("--again", action="store_true", help="upload: even if this short was uploaded before")
     a = ap.parse_args()
 
     if a.command in ("run", "scan", "pick") and not a.videos:
         ap.error("--videos is required")
     work = Path(a.work) if a.work else Path.cwd() / "fpvlaps-work" / f"hl_{Path(a.videos or '.').resolve().name}"
+    if a.command == "playlist":
+        from fpvhl.youtube import playlist
+        try:
+            playlist(a.work, a.video, a.playlist)
+        except PermissionError as e:
+            raise SystemExit(str(e))
+        return
     if a.command in ("render", "save", "meta", "upload") and not (work / "picks.json").exists():
         ap.error(f"no picks in {work}: run `pick` (or `run`) first, or pass --work")
     work.mkdir(parents=True, exist_ok=True)
@@ -94,7 +107,7 @@ def main():
         build_meta(work, title=a.title, quad=a.quad, pilot=a.pilot, place=a.place, date=a.date)
     if a.command == "upload":
         from fpvhl.youtube import upload
-        upload(work, a.privacy, a.expect_channel, a.again)
+        upload(work, a.privacy, a.expect_channel, a.again, None if a.no_playlist else a.playlist)
 
 
 if __name__ == "__main__":

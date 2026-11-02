@@ -22,6 +22,9 @@ PROMO = [
     "Also in the repo: fpv-best-laps (best 3 consecutive race laps with a lap-time overlay), "
     "RaceGOW leaderboard lookup and YouTube upload skills.",
 ]
+PLAYLIST = "FPV highlights"     # every highlights Short goes into this playlist on the channel
+PLAYLIST_DESC = ("FPV highlight Shorts, cut automatically from raw DVR footage by the fpv-highlights AI agent "
+                 f"skill. Free and open source: {REPO_URL}")
 SYSTEMS = [(r"^(hot_)?hdz_", "HDZero"), (r"^dji|^DJIG", "DJI"), (r"^avatar|^AvatarG", "Walksnail")]
 
 
@@ -108,7 +111,82 @@ def build_meta(work, title=None, quad=None, pilot="PAPFPV", place=None, date=Non
     return meta
 
 
-def upload(work, privacy="public", expect_channel="@niuk9290", again=False):
+def find_playlist(yt, title=PLAYLIST):
+    req = yt.playlists().list(part="snippet", mine=True, maxResults=50)
+    while req is not None:
+        resp = req.execute()
+        for it in resp.get("items", []):
+            if it["snippet"]["title"].strip().lower() == title.lower():
+                return it["id"]
+        req = yt.playlists().list_next(req, resp)
+    return None
+
+
+def ensure_playlist(yt, title=PLAYLIST, privacy="public"):
+    """The playlist's id; created (public, with the repo credit) when the channel has none by that title."""
+    pid = find_playlist(yt, title)
+    if pid:
+        return pid, False
+    body = {"snippet": {"title": title, "description": PLAYLIST_DESC}, "status": {"privacyStatus": privacy}}
+    return yt.playlists().insert(part="snippet,status", body=body).execute()["id"], True
+
+
+def playlist_videos(yt, pid):
+    ids, req = set(), yt.playlistItems().list(part="contentDetails", playlistId=pid, maxResults=50)
+    while req is not None:
+        resp = req.execute()
+        ids |= {it["contentDetails"]["videoId"] for it in resp.get("items", [])}
+        req = yt.playlistItems().list_next(req, resp)
+    return ids
+
+
+def add_to_playlist(video_ids, title=PLAYLIST, yt=None):
+    """Add videos to the playlist (created if missing), skipping ones already in it. Returns the playlist URL.
+    Needs a token with the full youtube scope: `yt_upload.py auth` (racegow-youtube) asks for it."""
+    yt_mod = _yt()
+    if yt_mod.PLAYLIST_SCOPE not in yt_mod.token_scopes():
+        raise PermissionError("the YouTube token can upload but not edit playlists: sign in again with "
+                              f"`python {YT_SCRIPT} auth` (no --client needed), then run "
+                              "`fpvhl.py playlist --work <work>`")
+    yt = yt or yt_mod.youtube()
+    pid, new = ensure_playlist(yt, title)
+    have = set() if new else playlist_videos(yt, pid)   # a new playlist can 404 for a few seconds
+    for v in video_ids:
+        if v in have:
+            print(f"  {v} already in playlist {title!r}")
+            continue
+        yt.playlistItems().insert(part="snippet", body={"snippet": {
+            "playlistId": pid, "resourceId": {"kind": "youtube#video", "videoId": v}}}).execute()
+        print(f"  added {v} to playlist {title!r}")
+    url = f"https://www.youtube.com/playlist?list={pid}"
+    print(f"PLAYLIST {url}" + ("  (created)" if new else ""))
+    return url
+
+
+def video_id(url):
+    m = re.search(r"(?:youtu\.be/|v=|shorts/)([\w-]{11})", url) or re.fullmatch(r"([\w-]{11})", url)
+    return m.group(1) if m else None
+
+
+def playlist(work=None, videos=(), title=PLAYLIST):
+    """Add this work's uploaded short (and/or the given video ids/URLs) to the playlist; record it."""
+    ids = [video_id(v) for v in videos]
+    mp = Path(work) / "export" / "youtube.json" if work else None
+    m = json.loads(mp.read_text()) if mp and mp.exists() else {}
+    if work:
+        if not m.get("youtube"):
+            raise SystemExit(f"{work}: not uploaded yet")
+        ids.append(video_id(m["youtube"]["url"]))
+    if not ids or None in ids:
+        raise SystemExit("nothing to add: pass --work (an uploaded short) or --video ID/URL")
+    url = add_to_playlist(ids, title)
+    if m.get("youtube"):
+        m["youtube"]["playlist"] = url
+        mp.write_text(json.dumps(m, indent=1, ensure_ascii=False) + "\n")
+    return url
+
+
+def upload(work, privacy="public", expect_channel="@niuk9290", again=False, playlist_title=PLAYLIST):
     work = Path(work)
     mp = work / "export" / "youtube.json"
     if not mp.exists():
@@ -147,4 +225,10 @@ def upload(work, privacy="public", expect_channel="@niuk9290", again=False):
     res.setdefault("uploads", []).append(entry)
     pj.write_text(json.dumps(res, indent=1))
     print(f"saved in {mp} and {pj}")
+    if playlist_title:
+        try:
+            entry["playlist"] = add_to_playlist([resp["id"]], playlist_title, yt)
+            mp.write_text(json.dumps(m, indent=1, ensure_ascii=False) + "\n")
+        except PermissionError as e:
+            print(f"WARNING not added to playlist {playlist_title!r}: {e}")
     return url

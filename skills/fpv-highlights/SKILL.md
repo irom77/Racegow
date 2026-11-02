@@ -92,12 +92,20 @@ python <skill-dir>/scripts/fpvhl.py upload --work <work> [--privacy public]
   `youtube.json` and `picks.json`. A vertical video of 3 min or less becomes a Short automatically.
 - `upload` needs google-api-python-client + google-auth-oauthlib in the same Python as PyAV/OpenCV
   (`.venv/bin/pip install google-api-python-client google-auth-oauthlib`; done in the repo .venv).
-- Sign-in is shared with the racegow-youtube skill (token in `~/.config/racegow-youtube/`). If it
-  has expired, run that skill's `yt_upload.py auth --client <client_secret.json>` (see its SKILL.md).
+- **Playlist:** every uploaded short is added to the channel's public **FPV highlights** playlist
+  (https://www.youtube.com/playlist?list=PLHCqhmmCs_rI; created with the repo credit if missing).
+  `--playlist NAME` for another one, `--no-playlist` to skip. For a short uploaded earlier:
+  `fpvhl.py playlist --work <work>` (or `--video ID|URL`); videos already in it are skipped. Give the
+  playlist link in the report.
+- Sign-in is shared with the racegow-youtube skill (token in `~/.config/racegow-youtube/`). Playlists
+  need the full `youtube` scope: a token from before it was added only uploads, and the upload then
+  warns "not added to playlist". Fix (also when the token has expired): run that skill's
+  `yt_upload.py auth` (no `--client` needed when a token exists; run it in the background, give the
+  pilot the AUTH_URL line, pick @niuk9290 and allow managing the account), then `fpvhl.py playlist`.
 
 ## 5. Report
 
-Give the pilot: the YouTube URL and privacy, the saved copy's path (outside the recordings folder),
+Give the pilot: the YouTube URL and privacy, the playlist link, the saved copy's path (outside the recordings folder),
 the clip list (recording + time), how much footage was scanned, what you excluded and why, and that
 the recordings folder can be deleted after they've reviewed the short (nothing of ours is in it).
 

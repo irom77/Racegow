@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Upload a verified best-3-laps clip to YouTube with a title and description built from the run.
 
-  yt_upload.py auth    --client CLIENT_SECRET.json      # one-time sign-in, saves the token
+  yt_upload.py auth    [--client CLIENT_SECRET.json]    # sign-in, saves the token (--client the first time)
   yt_upload.py channel                                  # which channel the token uploads to
   yt_upload.py meta    --work WORK [--rank 1] ...       # build title/description/tags -> JSON
   yt_upload.py upload  --meta META.json [--privacy public] [--expect-channel @niuk9290]
@@ -22,6 +22,9 @@ from pathlib import Path
 
 SCOPES = ["https://www.googleapis.com/auth/youtube.upload",
           "https://www.googleapis.com/auth/youtube.readonly"]
+# Asked for at sign-in: playlists (fpv-highlights adds every Short to its playlist) need the full scope.
+PLAYLIST_SCOPE = "https://www.googleapis.com/auth/youtube"
+AUTH_SCOPES = SCOPES + [PLAYLIST_SCOPE]
 CONFIG = Path.home() / ".config" / "racegow-youtube"
 TOKEN = CONFIG / "token.json"
 AUTH_PORT = 8765
@@ -269,12 +272,16 @@ def youtube():
         sys.exit("needs google-api-python-client and google-auth-oauthlib (see requirements.txt)")
     if not TOKEN.exists():
         sys.exit(f"no token at {TOKEN}: run `yt_upload.py auth --client CLIENT_SECRET.json` first")
-    c = Credentials.from_authorized_user_file(str(TOKEN), SCOPES)
+    c = Credentials.from_authorized_user_file(str(TOKEN))     # the scopes the token was granted
     if not c.valid and c.refresh_token:
         c.refresh(Request())
         TOKEN.write_text(c.to_json())
         TOKEN.chmod(0o600)
     return build("youtube", "v3", credentials=c)
+
+
+def token_scopes():
+    return set(json.loads(TOKEN.read_text()).get("scopes") or []) if TOKEN.exists() else set()
 
 
 def channels(yt):
@@ -285,7 +292,17 @@ def channels(yt):
 
 def cmd_auth(a):
     from google_auth_oauthlib.flow import InstalledAppFlow
-    flow = InstalledAppFlow.from_client_secrets_file(a.client, SCOPES)
+    if a.client:
+        flow = InstalledAppFlow.from_client_secrets_file(a.client, AUTH_SCOPES)
+    elif TOKEN.exists():        # signing in again: reuse the client stored in the old token
+        t = json.loads(TOKEN.read_text())
+        flow = InstalledAppFlow.from_client_config(
+            {"installed": {"client_id": t["client_id"], "client_secret": t["client_secret"],
+                           "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                           "token_uri": t.get("token_uri", "https://oauth2.googleapis.com/token"),
+                           "redirect_uris": ["http://localhost"]}}, AUTH_SCOPES)
+    else:
+        sys.exit("first sign-in needs --client CLIENT_SECRET.json")
     # No browser on WSL: print the consent URL and wait for the redirect on localhost.
     c = flow.run_local_server(port=AUTH_PORT, open_browser=False, prompt="consent",
                               authorization_prompt_message="Open this URL to sign in:\nAUTH_URL {url}",
@@ -393,7 +410,8 @@ def main():
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     p = sub.add_parser("auth", help="one-time Google sign-in")
-    p.add_argument("--client", required=True, help="OAuth desktop client file (client_secret_*.json)")
+    p.add_argument("--client", help="OAuth desktop client file (client_secret_*.json); "
+                                    "not needed to sign in again (the saved token's client is reused)")
     sub.add_parser("channel", help="show the channel the token uploads to")
 
     p = sub.add_parser("meta", help="build title, description and tags from a fpv-best-laps run")
