@@ -1,0 +1,6 @@
+av>=12
+opencv-python-headless
+numpy
+# YouTube upload only (shared token with racegow-youtube):
+google-api-python-client
+google-auth-oauthlib

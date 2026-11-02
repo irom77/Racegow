@@ -25,7 +25,7 @@
 | [`fpv-best-laps`](skills/fpv-best-laps/SKILL.md) | **Main skill.** Finds the fastest 3 consecutive clean laps in a folder of DVR recordings (RaceGOW, MultiGP, indoor or outdoor) and exports the clip with a lap-time overlay. [Details below](#fpv-best-laps). |
 | [`racegow-leaderboard`](skills/racegow-leaderboard/SKILL.md) | Your current place on the RaceGOW leaderboards, per track. |
 | [`racegow-youtube`](skills/racegow-youtube/SKILL.md) | Uploads a verified clip to your YouTube channel with the title, description and tags built from the run. |
-| `fpv-highlight-finder` *(planned)* | Not racing: picks the most interesting short of a requested length from a folder of freestyle/cruise footage and uploads it to YouTube. |
+| [`fpv-highlights`](skills/fpv-highlights/SKILL.md) | Not racing: cuts the most interesting moments (speed, rolls, dives, close passes) of a folder of freestyle/cruise/indoor footage into a vertical YouTube Short (max 60 s by default) and uploads it. [Details below](#fpv-highlights). |
 
 More side skills will be added next to these, one folder each under `skills/`.
 
@@ -68,6 +68,26 @@ Or ask your agent: *"What's my current RaceGOW position?"*
 The official rules (scoring, micro tiers, classes) are saved in [`rules/`](rules/README.md), one
 folder per season. `python3 rules/update_rules.py` refreshes them from racegow.com; `git diff rules/`
 then shows what changed.
+
+## fpv-highlights
+
+[`skills/fpv-highlights`](skills/fpv-highlights/SKILL.md) turns a folder of non-race recordings into
+one short. Every recording is decoded once and every 0.1 s is scored from the optical flow: speed,
+rolls/flips, dives and parallax (objects passing close). Parked footage, menus, static and
+Betaflight's post-flight STATS screen are dropped. The best varied clips are hard-cut into a 1080x1920
+Short with the original audio, a review sheet shows every clip before rendering, and the result is
+copied to `Videos/fpv-shorts/<folder>` (never into the recordings folder, which you delete after
+reviewing the upload).
+
+```bash
+.venv/bin/python skills/fpv-highlights/scripts/fpvhl.py pick   --videos /path/to/HDZero_12_16_2024   # scan + choose
+.venv/bin/python skills/fpv-highlights/scripts/fpvhl.py render --work fpvlaps-work/hl_HDZero_12_16_2024
+.venv/bin/python skills/fpv-highlights/scripts/fpvhl.py meta   --work fpvlaps-work/hl_HDZero_12_16_2024 --quad "..."
+.venv/bin/python skills/fpv-highlights/scripts/fpvhl.py upload --work fpvlaps-work/hl_HDZero_12_16_2024
+```
+
+Or ask your agent: *"Make a 1-minute highlights short from C:\Users\me\Videos\HDZero_12_16_2024."*
+Needs PyAV (`pip install av`): the static ffmpeg build crashes on HDZero `.ts` files.
 
 ## Upload the clip to YouTube
 
@@ -248,6 +268,7 @@ Racegow/
 │   └── assets/                OSD digit templates, track README template, HyperFrames overlay, fonts
 ├── skills/racegow-leaderboard/  side skill: RaceGOW leaderboard position
 ├── skills/racegow-youtube/      side skill: YouTube upload of a verified clip
+├── skills/fpv-highlights/       side skill: highlights short from non-race footage (fpvhl.py)
 ├── legacy/                    original single-track prototype, not maintained (hard-coded paths; see legacy/README.md)
 ├── export/                    HyperFrames project used for the first hand-verified export
 │   ├── index.html             overlay composition
