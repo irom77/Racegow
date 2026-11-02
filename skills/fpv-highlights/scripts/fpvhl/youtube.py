@@ -12,6 +12,16 @@ from .pick import mmss
 
 REPO_URL = "https://github.com/irom77/Racegow"
 YT_SCRIPT = Path(__file__).resolve().parents[3] / "racegow-youtube" / "scripts" / "yt_upload.py"
+# Credit for the repo and its AI skills, in every description (the pilot wants the tools recognised).
+PROMO = [
+    "Made with AI: this Short was found, cut and uploaded by the fpv-highlights agent skill "
+    "(runs in Claude Code, Codex or any AI coding agent) from the open-source Racegow repo. It scans every "
+    "DVR recording, scores speed, rolls, dives and close passes, skips parked, menu and crash footage, "
+    "and picks varied moments.",
+    f"Free on GitHub: {REPO_URL}",
+    "Also in the repo: fpv-best-laps (best 3 consecutive race laps with a lap-time overlay), "
+    "RaceGOW leaderboard lookup and YouTube upload skills.",
+]
 SYSTEMS = [(r"^(hot_)?hdz_", "HDZero"), (r"^dji|^DJIG", "DJI"), (r"^avatar|^AvatarG", "Walksnail")]
 
 
@@ -60,11 +70,12 @@ def build_meta(work, title=None, quad=None, pilot="PAPFPV", place=None, date=Non
     vertical = r["size"][1] > r["size"][0]
     if not title:
         title = " ".join(x for x in ["FPV highlights", f"{place}" if place else "", when] if x) + f" | {pilot}"
-        if vertical and r["seconds"] <= 180:
-            title += " #Shorts"
+    if vertical and r["seconds"] <= 180 and "#shorts" not in title.lower():
+        title += " #Shorts"
     lines = [f"{len(clips)} FPV moments, {r['seconds']:.0f} s, picked automatically from "
              f"{res['recordings']} {system + ' ' if system else ''}DVR recordings "
-             f"({res['footage_s'] / 60:.0f} min of footage).", ""]
+             f"({res['footage_s'] / 60:.0f} min of footage).",
+             f"Edited by an AI agent skill, free and open source: {REPO_URL}", ""]
     if date:
         lines.append(f"Flown: {date}" + (f", {place}" if place else ""))
     elif place:
@@ -75,9 +86,10 @@ def build_meta(work, title=None, quad=None, pilot="PAPFPV", place=None, date=Non
                  (", music added" if r.get("music") else ""))
     lines.append(f"Pilot: {pilot}")
     lines += ["", "Clips:"] + [f"{mmss(c['at'])[:-2]} {c['video']} @ {mmss(c['start'])[:-2]}" for c in r["clips"]]
-    lines += ["", f"Cut with the fpv-highlights skill: {REPO_URL}", "",
+    lines += ["", *PROMO, "",
               "#FPV #fpvdrone" + (f" #{system}" if system else "") + (" #Shorts" if vertical else "")]
-    tags = ["FPV", "FPV drone", "drone", "freestyle", pilot] + ([system] if system else []) + \
+    tags = ["FPV", "FPV drone", "drone", "freestyle", pilot, "AI video editing", "Claude Code", "AI agent skill",
+            "Racegow"] + ([system] if system else []) + \
            ([quad.split(" ")[0]] if quad else []) + (["Shorts"] if vertical else [])
     meta = dict(title=title[:100], description="\n".join(lines), tags=tags, categoryId="17",
                 file=r.get("saved") or r["output"], local=r["output"], date=date, date_source=date_src,

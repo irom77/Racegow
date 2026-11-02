@@ -80,11 +80,18 @@ python <skill-dir>/scripts/fpvhl.py upload --work <work> [--privacy public]
   dates are only used when plausible. A goggles dump folder often holds many sessions (check the
   sheets: summer and winter, different places): then the folder date is only the copy date, so pass
   `--date none` (or the real date if the pilot knows it).
+- Every description ends with a **credit block for the repo and its AI skills** (`youtube.PROMO`):
+  made with the fpv-highlights agent skill, link to https://github.com/irom77/Racegow, the other
+  skills. The pilot wants the repo recognised: keep it, even when the rest of the text is changed.
+- `--title` replaces the title when the pilot asks for one (e.g. `--title "FPV highlights 2024 | PAPFPV"`);
+  `#Shorts` is appended for a vertical short of 3 min or less.
 - Quad: read the craft name from the OSD on the sheets and look it up in the pilot's quad list
   (github irom77/fpv_cli_dumps `hardware.csv`); ask if several quads appear or none is readable.
 - **Show the pilot the title, description, channel and privacy and get an OK before `upload`.**
   The upload checks the token's channel is `--expect-channel` (@niuk9290) and records the URL in
   `youtube.json` and `picks.json`. A vertical video of 3 min or less becomes a Short automatically.
+- `upload` needs google-api-python-client + google-auth-oauthlib in the same Python as PyAV/OpenCV
+  (`.venv/bin/pip install google-api-python-client google-auth-oauthlib`; done in the repo .venv).
 - Sign-in is shared with the racegow-youtube skill (token in `~/.config/racegow-youtube/`). If it
   has expired, run that skill's `yt_upload.py auth --client <client_secret.json>` (see its SKILL.md).
 
