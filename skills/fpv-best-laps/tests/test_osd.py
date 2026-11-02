@@ -25,6 +25,28 @@ class TestLayouts(unittest.TestCase):
         self.assertEqual([b[0] for b in boxes], [974, 1014, 1094, 1134])
 
 
+class TestThinFont(unittest.TestCase):
+    def test_thin_boxes(self):
+        # MultiGP Tritac 2026-11-01, hdz_0028 frame 3000 ("00:25"): colon at x 1157, glyph lefts
+        # 1101 / 1125 / 1174 / 1198, 15 px tall from y 475
+        boxes = osd.cell_boxes((1157.0, 482.0, 6.0, 0.0, osd.THIN))
+        self.assertEqual([b[0] + 2 for b in boxes], [1101, 1125, 1174, 1198])
+        self.assertTrue(all(b[1] <= 475 and b[1] + b[3] >= 490 for b in boxes))
+
+    def test_thin_not_confused_with_wide(self):
+        self.assertTrue(osd.is_thin((1, 2, 6, 0.0, osd.THIN)))
+        self.assertFalse(osd.is_thin((1, 2, 18.1, 40.0)))
+        self.assertFalse(osd.is_thin((1, 2, 18.1)))
+
+    def test_thin_colon_follows_jitter(self):
+        g = np.zeros((720, 1280), np.uint8)
+        g[480:483, 1159:1162] = 255                                  # dots 2 px right of calibration
+        g[486:489, 1159:1162] = 255
+        cx, cy = osd.thin_colon_here(g, (1158.0, 485.5, 6.0, 0.0, osd.THIN))[:2]
+        self.assertAlmostEqual(cx, 1160.0)
+        self.assertAlmostEqual(cy, 484.0)
+
+
 class TestRunsForward(unittest.TestCase):
     def test_timer_with_misreads(self):
         # RealSco's upload sampled across the video: a ticking timer with OCR misreads (0 read as 3)

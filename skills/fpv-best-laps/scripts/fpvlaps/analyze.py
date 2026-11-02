@@ -46,12 +46,13 @@ def arm_info(v):
     readable = np.mean(~np.isnan(secs), 0)
     # timers in a wider character layout are read with templates from the default one: too many
     # misread digits for arm detection (verify still uses them to find edits)
-    wide = [len(t) > 3 for t in v["timers"]]
+    wide = [len(t) > 3 and not osd.is_thin(t) for t in v["timers"]]     # the thin font has its own
     rows = [r for r in range(secs.shape[1]) if readable[r] > 0.3 and not wide[r]]
     if not rows:
         why = "OSD timer in a wider layout, used for edit checks only" if any(wide) else "OSD unreadable"
         return flight_segments_from_motion(v["motion"], v["fps"]), f"motion ({why})"
-    segs = {r: osd.arm_segments(secs[:, r], v["fps"], OCR_STEP) for r in rows}
+    segs = {r: osd.arm_segments(secs[:, r], v["fps"], OCR_STEP, tol=2.5 if osd.is_thin(v["timers"][r]) else 1.3)
+            for r in rows}
     row = min(rows, key=lambda r: (-len(segs[r]), np.nanmedian(secs[:, r])))
     if not segs[row]:
         return flight_segments_from_motion(v["motion"], v["fps"]), "motion (OSD timer never ran)"
