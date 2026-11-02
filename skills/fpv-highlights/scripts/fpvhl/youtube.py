@@ -90,7 +90,7 @@ def build_meta(work, title=None, quad=None, pilot="PAPFPV", place=None, date=Non
               "#FPV #fpvdrone" + (f" #{system}" if system else "") + (" #Shorts" if vertical else "")]
     tags = ["FPV", "FPV drone", "drone", "freestyle", pilot, "AI video editing", "Claude Code", "AI agent skill",
             "Racegow"] + ([system] if system else []) + \
-           ([quad.split(" ")[0]] if quad else []) + (["Shorts"] if vertical else [])
+           [q.strip() for q in (quad or "").split(",") if q.strip()] + (["Shorts"] if vertical else [])
     meta = dict(title=title[:100], description="\n".join(lines), tags=tags, categoryId="17",
                 file=r.get("saved") or r["output"], local=r["output"], date=date, date_source=date_src,
                 warnings=[] if date or date_src == "left out" else ["date flown unknown: pass --date"])
