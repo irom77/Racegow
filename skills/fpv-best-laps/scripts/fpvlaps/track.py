@@ -336,7 +336,13 @@ def reference_from_anchor(vids, name, frame, log=print):
         a, b = frame
         if not 0 <= a < b < len(v["F"]):
             raise RuntimeError(f"--anchor {name}:{a}-{b}: frames outside the video or in the wrong order")
-        log(f"  reference from anchor: {name} {a}->{b} ({(b - a) / v['fps']:.2f}s, both ends given)")
+        lap_s = (b - a) / v["fps"]
+        log(f"  reference from anchor: {name} {a}->{b} ({lap_s:.2f}s, both ends given)")
+        if not 0.75 * lap_s <= P <= 1.3 * lap_s:
+            # The self-similarity period can lock onto a repeating sub-section of a long lap (Tritac:
+            # 5.5 s on a 32 s lap); a lap the pilot pinned at both ends is the better measure.
+            log(f"  lap period {P:.2f}s disagrees with the anchored lap; using {lap_s:.2f}s")
+            P = lap_s
         return dict(video=name, start=int(a), end=int(b), period_s=P, source="anchor")
     Pf = int(P * v["fps"])
     F = v["F"]

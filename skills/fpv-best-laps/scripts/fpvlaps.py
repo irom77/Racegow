@@ -40,8 +40,16 @@ track (the result.json files under --work-root) into history.html; see fpvlaps/h
 sector deltas, into <work>/compare/. No --lap: this session's best lap vs the best lap on the track.
 See fpvlaps/compare.py."""
 import argparse
+import os
 import sys
 from pathlib import Path
+
+# Single-threaded BLAS, set before numpy loads. Extraction forks a Pool after numpy is imported, and a
+# forked OpenBLAS thread pool spins forever in osd.classify's matrix product (seen 2026-11-01: 7
+# workers at 300% CPU for 35 min, no video finished). The code is vectorised per frame, so one BLAS
+# thread costs nothing measurable.
+for _v in ("OPENBLAS_NUM_THREADS", "OMP_NUM_THREADS", "MKL_NUM_THREADS"):
+    os.environ.setdefault(_v, "1")
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
