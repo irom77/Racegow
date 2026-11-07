@@ -60,7 +60,16 @@ def list_tabs(sheet_id):
 
 def read_tab(sheet_id, gid):
     text = get(SHEET.format(id=sheet_id) + f"/export?format=csv&gid={gid}")
-    return list(csv.DictReader(io.StringIO(text)))
+    rows = list(csv.reader(io.StringIO(text)))
+    if not rows:
+        return []
+    # Side tables (e.g. the EMAX list) repeat headers like Rank/Reg#/Pilot Name further right;
+    # DictReader would keep the last (empty) copy, so keep the first occurrence of each header.
+    first = {}
+    for i, h in enumerate(rows[0]):
+        if h and h not in first:
+            first[h] = i
+    return [{h: (r[i] if i < len(r) else "") for h, i in first.items()} for r in rows[1:]]
 
 
 def norm(name):
