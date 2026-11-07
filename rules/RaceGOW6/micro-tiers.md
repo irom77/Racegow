@@ -3,7 +3,7 @@
 ~$2250 CASH Prizes in the
 Micro Tiers of RaceGOW6
 
-1. There will be 18 total “micro tiers.” Each micro tier will have 6-20 pilots.
+1. There will be 21 total “micro tiers.” Each micro tier will have 6-20 pilots.
 2. The micro tiers will be set by the pilot rankings on the previous track, for example Track 1 will set  the micro tiers for track 2, track 2 will then set the micro tiers for track 3, ect ect.
 3. The position you rank in your micro tier on tracks 2-6 will determine your Tier score. 1st place = 1 point, 2nd place = 2 points ect ect
 4. If you buy in for the BONUS PRIZES there are CASH prizes for the top two or three positions of every single tier. You can gain access to these prizes by joining the 777 Bonus Prize Tier on FPVSkittles Patreon = https://www.patreon.com/FPVSkittles
